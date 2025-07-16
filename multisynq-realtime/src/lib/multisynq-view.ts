@@ -12,9 +12,6 @@ export interface CanvasViewState {
 }
 
 export class CanvasView extends View {
-  // Explicit class name to prevent minification issues
-  static className = 'CanvasView';
-  
   // Instance properties
   selectedColor: string = '#FF0000';
   hoverPixel: [number, number] | null = null;
@@ -23,16 +20,10 @@ export class CanvasView extends View {
   isConnected: boolean = false;
   currentTool: 'draw' | 'erase' = 'draw';
 
-  constructor(model?: any) {
-    super(model);
-    // Ensure class name is preserved
-    (this.constructor as any).className = 'CanvasView';
-  }
-
   init() {
-    console.log('🎨 CanvasView initialized with className:', (this.constructor as any).className);
+    console.log('🎨 CanvasView initialized');
     
-    // Listen for model events - GitHub example style
+    // Listen for model events
     this.subscribe('canvas', 'pixel-updated', this.handlePixelUpdated.bind(this));
     this.subscribe('canvas', 'canvas-cleared', this.handleCanvasCleared.bind(this));
     this.subscribe('canvas', 'canvas-state-changed', this.handleCanvasStateChanged.bind(this));
@@ -135,7 +126,4 @@ export class CanvasView extends View {
   }
 }
 
-// Register the view class globally
-if (typeof window !== 'undefined') {
-  (window as any).CanvasView = CanvasView;
-} 
+// View classes are passed directly to Session.join() 

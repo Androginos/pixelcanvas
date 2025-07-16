@@ -13,24 +13,15 @@ export interface CanvasMultisynqState {
 }
 
 export class CanvasModel extends Model {
-  // Explicit class name to prevent minification issues
-  static className = 'CanvasModel';
-  
   // Instance properties
   pixels: Record<string, { color: string; owner: string; timestamp: number }> = {};
   lastUpdated: number = Date.now();
   totalPixels: number = 0;
 
-  constructor() {
-    super();
-    // Ensure class name is preserved
-    (this.constructor as any).className = 'CanvasModel';
-  }
-
   init() {
-    console.log('🎨 CanvasModel initialized with className:', (this.constructor as any).className);
+    console.log('🎨 CanvasModel initialized');
     
-    // Subscribe to pixel update events from views - GitHub example style
+    // Subscribe to pixel update events from views
     this.subscribe('canvas', 'pixel-update', this.handlePixelUpdate.bind(this));
     this.subscribe('canvas', 'canvas-clear', this.handleCanvasClear.bind(this));
   }
@@ -98,10 +89,8 @@ export class CanvasModel extends Model {
   }
 }
 
-// Register the model class globally
-if (typeof window !== 'undefined') {
-  (window as any).CanvasModel = CanvasModel;
-}
+// REQUIRED: Register the model class
+CanvasModel.register("CanvasModel");
 
 export function createInitialState(): CanvasMultisynqState {
   return {

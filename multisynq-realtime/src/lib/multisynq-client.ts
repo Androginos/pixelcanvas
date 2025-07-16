@@ -3,6 +3,10 @@
 // Multisynq Client Configuration
 import { PixelUpdate } from '@/types/pixelplace';
 
+// Import model and view classes at the top level
+import { CanvasModel } from './multisynq-model';
+import { CanvasView } from './multisynq-view';
+
 // Multisynq configuration
 export const MULTISYNQ_CONFIG = {
   apiKey: process.env.NEXT_PUBLIC_MULTISYNQ_API_KEY || '',
@@ -111,26 +115,25 @@ export class MultisynqCanvasClient {
       if (!MULTISYNQ_CONFIG.useMock && typeof window !== 'undefined') {
         // SSR koruması - sadece client-side'da çalıştır
         const { Session } = await import('@multisynq/client');
-        
-        // Import model and view classes
-        const { CanvasModel } = await import('./multisynq-model');
-        const { CanvasView } = await import('./multisynq-view');
 
-        // Connect to real Multisynq session - GitHub example style
+        // Connect to real Multisynq session - Official GitHub example style
         const sessionParams = {
           apiKey: MULTISYNQ_CONFIG.apiKey,
           appId: MULTISYNQ_CONFIG.appId,
-          model: CanvasModel,
-          view: CanvasView,
           name: sessionId,
-          password: 'pixelcanvas2024'
+          password: 'pixelcanvas2024',
+          // Both model and view classes are needed
+          model: CanvasModel,
+          view: CanvasView
         };
 
         console.log('🔧 Attempting to connect with params:', {
           apiKey: MULTISYNQ_CONFIG.apiKey.substring(0, 10) + '...',
           appId: MULTISYNQ_CONFIG.appId,
           name: sessionId,
-          password: 'pixelcanvas2024'
+          password: 'pixelcanvas2024',
+          modelClass: CanvasModel.name,
+          viewClass: CanvasView.name
         });
         
         this.session = await Session.join(sessionParams);
