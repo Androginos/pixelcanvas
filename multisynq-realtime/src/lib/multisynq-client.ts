@@ -228,14 +228,17 @@ export class MultisynqCanvasClient {
 
     // Listen to UI events from view
     this.view.subscribe('ui', 'ui-pixel-update', (data: unknown) => {
+      console.log('🔧 CLIENT: Received ui-pixel-update from view:', data);
       callback('pixel-update', data);
     });
 
     this.view.subscribe('ui', 'ui-canvas-clear', (data: unknown) => {
+      console.log('🔧 CLIENT: Received ui-canvas-clear from view:', data);
       callback('canvas-clear', data);
     });
 
     this.view.subscribe('ui', 'ui-canvas-state-changed', (data: unknown) => {
+      console.log('🔧 CLIENT: Received ui-canvas-state-changed from view:', data);
       callback('canvas-state-changed', data);
     });
   }

@@ -422,6 +422,8 @@ export default function PixelPlaceCanvas({
 
   // Handle mouse events
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent default to avoid passive listener issues
+    
     if (dragging && dragStart.current) {
       const dx = e.clientX - dragStart.current.x;
       const dy = e.clientY - dragStart.current.y;
@@ -457,9 +459,10 @@ export default function PixelPlaceCanvas({
   }, [dragging, getPixelCoord, scale, canvasConfig.width, canvasConfig.height]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent default to avoid passive listener issues
+    
     if (e.button === 1) return; // Middle click
     if (e.button === 2) { // Right click - erase
-      e.preventDefault();
       setCurrentTool('erase');
       return;
     }
@@ -469,7 +472,9 @@ export default function PixelPlaceCanvas({
     lastMousePos.current = { x: e.clientX, y: e.clientY };
   }, []);
 
-  const handleMouseUp = useCallback(() => {
+  const handleMouseUp = useCallback((e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent default to avoid passive listener issues
+    
     setDragging(false);
     dragStart.current = null;
     // Reset hasMoved after a short delay to allow for click detection
@@ -593,6 +598,10 @@ export default function PixelPlaceCanvas({
           width: '100vw',
           height: '100vh'
         }}
+        // Add non-passive event listeners to prevent preventDefault errors
+        onTouchStart={(e) => e.preventDefault()}
+        onTouchMove={(e) => e.preventDefault()}
+        onTouchEnd={(e) => e.preventDefault()}
       />
 
       {/* Left Side Controls */}
