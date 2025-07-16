@@ -269,8 +269,20 @@ export class MultisynqCanvasClient {
 
   // Get detailed session info
   getSessionInfo() {
+    // Get real session ID from Multisynq session object
+    const realSessionId = this.session?.name || this.sessionId;
+    const realSessionName = this.session?.sessionName || this.sessionId;
+    
+    console.log('🔍 Real session details:', {
+      sessionObject: this.session,
+      sessionName: realSessionName,
+      sessionId: realSessionId,
+      isConnected: this.isConnected
+    });
+    
     return {
-      sessionId: this.sessionId,
+      sessionId: realSessionId,
+      sessionName: realSessionName,
       isConnected: this.isConnected,
       modelState: this.model?.getState() || null,
       viewState: this.view?.getState() || null
