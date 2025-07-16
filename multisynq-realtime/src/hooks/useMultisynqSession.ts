@@ -31,12 +31,16 @@ export function useMultisynqSession({
   // Connect to session
   const connectToSession = useCallback(async () => {
     try {
+      console.log('🔍 Connecting to session with params:', { sessionId, userId, walletAddress });
+      
       // Multisynq handles session ID automatically via App.autoSession()
       await client.connect();
       setIsConnected(true);
       
       // Update session info
       const info = client.getSessionInfo();
+      console.log('🔍 Client session info:', info);
+      
       setSessionInfo({
         sessionId: info.sessionId,
         isConnected: info.isConnected
@@ -48,7 +52,7 @@ export function useMultisynqSession({
       setIsConnected(false);
       setSessionInfo({ sessionId: '', isConnected: false });
     }
-  }, [client]);
+  }, [client, sessionId, userId, walletAddress]);
 
   // Disconnect from session
   const disconnectFromSession = useCallback(async () => {

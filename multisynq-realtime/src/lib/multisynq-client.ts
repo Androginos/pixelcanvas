@@ -144,6 +144,10 @@ export class MultisynqCanvasClient {
         this.model = this.session?.model || null;
         this.view = this.session?.view || null;
         
+        console.log('🔍 Session object:', this.session);
+        console.log('🔍 Model object:', this.model);
+        console.log('🔍 View object:', this.view);
+        
         // Set up view event listeners
         this.setupViewListeners();
         

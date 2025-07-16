@@ -4,6 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import PixelPlaceCanvas from '@/components/PixelPlaceCanvas';
 import WalletConnection from '@/components/WalletConnection';
+import { useMultisynqSession } from '@/hooks/useMultisynqSession';
 import { generateUserId, generateSessionId } from '@/lib/multisynq';
 
 function HomeContent() {
@@ -12,12 +13,21 @@ function HomeContent() {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [userId] = useState(() => generateUserId());
   const [sessionId] = useState(() => {
-    // Get session ID from URL or generate new one
-    const urlSessionId = searchParams.get('session');
-    return urlSessionId || generateSessionId();
+    // Get session ID from URL or let Multisynq auto-generate
+    const urlSessionId = searchParams.get('q'); // Multisynq uses ?q=sessionId
+    console.log('🔍 URL Session ID from ?q=:', urlSessionId);
+    console.log('🔍 All URL params:', Object.fromEntries(searchParams.entries()));
+    return urlSessionId || 'auto-session'; // Let Multisynq handle session ID
   });
   const [userName, setUserName] = useState('');
   const [isClient, setIsClient] = useState(false);
+
+  // Get Multisynq session info
+  const { sessionInfo } = useMultisynqSession({
+    sessionId,
+    userId,
+    walletAddress: walletAddress || ''
+  });
 
   // Set client flag on mount
   useEffect(() => {
@@ -100,11 +110,26 @@ function HomeContent() {
               
               {/* Session Info */}
               <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm font-medium text-blue-700 mb-2">🎨 Session ID:</p>
-                <div className="bg-white p-3 rounded border border-blue-300">
-                  <p className="font-mono text-lg font-bold text-blue-900 break-all select-all">
-                    {sessionId}
-                  </p>
+                <p className="text-sm font-medium text-blue-700 mb-2">🎨 Session Information:</p>
+                <div className="bg-white p-3 rounded border border-blue-300 space-y-2">
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">URL Session ID:</p>
+                    <p className="font-mono text-sm font-bold text-blue-900 break-all select-all">
+                      {sessionId === 'auto-session' ? 'Auto-generated' : sessionId}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Real Multisynq Session ID:</p>
+                    <p className="font-mono text-sm font-bold text-green-900 break-all select-all">
+                      {sessionInfo?.sessionId || 'Connecting...'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Connection Status:</p>
+                    <p className={`text-sm font-bold ${sessionInfo?.isConnected ? 'text-green-600' : 'text-red-600'}`}>
+                      {sessionInfo?.isConnected ? '🟢 Connected' : '🔴 Disconnected'}
+                    </p>
+                  </div>
                 </div>
                 <div className="mt-3 flex items-center justify-between">
                   <p className="text-xs text-blue-600">
