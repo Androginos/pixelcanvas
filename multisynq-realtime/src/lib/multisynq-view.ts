@@ -31,9 +31,11 @@ export class CanvasView extends View {
 
   // Handle pixel updates from model
   handlePixelUpdated(pixelUpdate: PixelUpdate) {
-    console.log('🎨 VIEW: Received pixel-updated from model:', pixelUpdate);
+    console.log('🎨 VIEW: Received pixel-updated event from model:', pixelUpdate);
+    console.log('🎨 VIEW: Publishing to UI components...');
     // Publish to UI components
     this.publish('ui', 'ui-pixel-update', pixelUpdate);
+    console.log('🎨 VIEW: UI event published successfully');
   }
 
   // Handle canvas clear from model
@@ -51,13 +53,15 @@ export class CanvasView extends View {
   // Send pixel update to model
   sendPixelUpdate(pixelUpdate: PixelUpdate) {
     console.log('🎨 VIEW: Sending pixel update to model:', pixelUpdate);
-    // Send to model using session scope
-    this.publish('session', 'pixel-update', pixelUpdate);
+    console.log('🎨 VIEW: Using model scope for publish...');
+    // Send to model using model scope
+    this.publish('model', 'pixel-update', pixelUpdate);
+    console.log('🎨 VIEW: Pixel update published to model successfully');
   }
 
   // Send canvas clear to model
   sendCanvasClear() {
-    this.publish('session', 'canvas-clear', { timestamp: Date.now() });
+    this.publish('model', 'canvas-clear', { timestamp: Date.now() });
   }
 
   // Update selected color
@@ -129,4 +133,13 @@ export class CanvasView extends View {
   }
 }
 
-// View classes are passed directly to Session.join() 
+export function createInitialViewState(): CanvasViewState {
+  return {
+    selectedColor: '#FF0000',
+    hoverPixel: null,
+    scale: 10,
+    offset: { x: 0, y: 0 },
+    isConnected: false,
+    currentTool: 'draw'
+  };
+}

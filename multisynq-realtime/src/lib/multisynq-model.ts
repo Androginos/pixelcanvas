@@ -24,14 +24,15 @@ export class CanvasModel extends Model {
     // Initialize timestamp using synchronized time
     this.lastUpdated = this.now();
     
-    // Subscribe to pixel update events from views using sessionId
-    this.subscribe(this.sessionId, 'pixel-update', this.handlePixelUpdate);
-    this.subscribe(this.sessionId, 'canvas-clear', this.handleCanvasClear);
+    // Subscribe to pixel update events from views using model scope
+    this.subscribe('model', 'pixel-update', this.handlePixelUpdate);
+    this.subscribe('model', 'canvas-clear', this.handleCanvasClear);
   }
 
   // Handle pixel update from any view
   handlePixelUpdate(pixelUpdate: PixelUpdate) {
-    console.log('🎯 MODEL: Received pixel update:', pixelUpdate);
+    console.log('🎯 MODEL: Received pixel update event:', pixelUpdate);
+    console.log('🎯 MODEL: Current pixels count:', Object.keys(this.pixels).length);
     
     const key = `${pixelUpdate.x}_${pixelUpdate.y}`;
     
@@ -52,10 +53,10 @@ export class CanvasModel extends Model {
     this.lastUpdated = this.now(); // Use synchronized time
     this.totalPixels = Object.keys(this.pixels).length;
     
-    // Publish the update to all views using sessionId
-    console.log('🎯 MODEL: Publishing pixel-updated to sessionId:', this.sessionId);
-    this.publish(this.sessionId, 'pixel-updated', pixelUpdate);
-    this.publish(this.sessionId, 'canvas-state-changed', this.getState());
+    // Publish the update to all views using session scope
+    console.log('🎯 MODEL: Publishing pixel-updated to session scope');
+    this.publish('session', 'pixel-updated', pixelUpdate);
+    this.publish('session', 'canvas-state-changed', this.getState());
   }
 
   // Handle canvas clear from any view
@@ -64,8 +65,8 @@ export class CanvasModel extends Model {
     this.lastUpdated = this.now();
     this.totalPixels = 0;
     
-    this.publish(this.sessionId, 'canvas-cleared', { timestamp: this.now() });
-    this.publish(this.sessionId, 'canvas-state-changed', this.getState());
+    this.publish('session', 'canvas-cleared', { timestamp: this.now() });
+    this.publish('session', 'canvas-state-changed', this.getState());
   }
 
   // Get current state
