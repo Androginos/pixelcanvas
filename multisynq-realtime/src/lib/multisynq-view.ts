@@ -24,9 +24,9 @@ export class CanvasView extends View {
     console.log('🎨 CanvasView initialized');
     
     // Listen for model events using session scope
-    this.subscribe('session', 'pixel-updated', this.handlePixelUpdated.bind(this));
-    this.subscribe('session', 'canvas-cleared', this.handleCanvasCleared.bind(this));
-    this.subscribe('session', 'canvas-state-changed', this.handleCanvasStateChanged.bind(this));
+    this.subscribe('session', 'pixel-updated', this.handlePixelUpdated);
+    this.subscribe('session', 'canvas-cleared', this.handleCanvasCleared);
+    this.subscribe('session', 'canvas-state-changed', this.handleCanvasStateChanged);
   }
 
   // Handle pixel updates from model
@@ -51,6 +51,7 @@ export class CanvasView extends View {
   // Send pixel update to model
   sendPixelUpdate(pixelUpdate: PixelUpdate) {
     console.log('🎨 VIEW: Sending pixel update to model:', pixelUpdate);
+    // Send to model using session scope
     this.publish('session', 'pixel-update', pixelUpdate);
   }
 
