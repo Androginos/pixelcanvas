@@ -28,11 +28,14 @@ export class CanvasModel extends Model {
 
   // Handle pixel update from any view
   handlePixelUpdate(pixelUpdate: PixelUpdate) {
+    console.log('🎯 MODEL: Received pixel update:', pixelUpdate);
+    
     const key = `${pixelUpdate.x}_${pixelUpdate.y}`;
     
     if (pixelUpdate.color === 'transparent') {
       // Remove pixel
       delete this.pixels[key];
+      console.log('🎯 MODEL: Removed pixel at', key);
     } else {
       // Add/update pixel
       this.pixels[key] = {
@@ -40,12 +43,14 @@ export class CanvasModel extends Model {
         owner: pixelUpdate.owner,
         timestamp: pixelUpdate.timestamp
       };
+      console.log('🎯 MODEL: Added/updated pixel at', key, 'with color', pixelUpdate.color);
     }
     
     this.lastUpdated = this.now(); // Use synchronized time
     this.totalPixels = Object.keys(this.pixels).length;
     
     // Publish the update to all views using sessionId
+    console.log('🎯 MODEL: Publishing pixel-updated to sessionId:', this.sessionId);
     this.publish(this.sessionId, 'pixel-updated', pixelUpdate);
     this.publish(this.sessionId, 'canvas-state-changed', this.getState());
   }

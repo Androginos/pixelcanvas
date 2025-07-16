@@ -31,6 +31,7 @@ export class CanvasView extends View {
 
   // Handle pixel updates from model
   handlePixelUpdated(pixelUpdate: PixelUpdate) {
+    console.log('🎨 VIEW: Received pixel-updated from model:', pixelUpdate);
     // Publish to UI components
     this.publish('ui', 'ui-pixel-update', pixelUpdate);
   }
@@ -49,6 +50,7 @@ export class CanvasView extends View {
 
   // Send pixel update to model
   sendPixelUpdate(pixelUpdate: PixelUpdate) {
+    console.log('🎨 VIEW: Sending pixel update to model:', pixelUpdate);
     this.publish('session', 'pixel-update', pixelUpdate);
   }
 

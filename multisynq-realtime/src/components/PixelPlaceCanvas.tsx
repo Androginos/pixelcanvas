@@ -382,7 +382,9 @@ export default function PixelPlaceCanvas({
 
       // Send via Multisynq model
       try {
+        console.log('🎨 CANVAS: Sending pixel update to Multisynq model:', pixelUpdate);
         await sendPixelUpdateToModel(pixelUpdate);
+        console.log('🎨 CANVAS: Successfully sent pixel update to model');
       } catch (error) {
         console.error('Failed to send pixel update to model:', error);
       }
@@ -516,14 +518,20 @@ export default function PixelPlaceCanvas({
   // Listen for pixel updates from other users via Multisynq
   useEffect(() => {
     const handleViewEvent = (eventType: string, data: unknown) => {
-      console.log('🎨 Multisynq view event:', eventType, data);
+      console.log('🎨 CANVAS: Multisynq view event:', eventType, data);
       
       if (eventType === 'pixel-update') {
         const pixelUpdate = data as PixelUpdate;
-        if (pixelUpdate.owner === walletAddress) return; // Don't update own pixels
+        console.log('🎨 CANVAS: Processing pixel update:', pixelUpdate);
+        
+        if (pixelUpdate.owner === walletAddress) {
+          console.log('🎨 CANVAS: Skipping own pixel update');
+          return; // Don't update own pixels
+        }
         
         if (pixelUpdate.color === 'transparent') {
           // Handle pixel removal
+          console.log('🎨 CANVAS: Removing pixel at', pixelUpdate.x, pixelUpdate.y);
           setCanvasState(prev => {
             const newPixels = { ...prev.pixels };
             const key = pixelKey(pixelUpdate.x, pixelUpdate.y);
@@ -537,18 +545,22 @@ export default function PixelPlaceCanvas({
             };
           });
         } else {
+          console.log('🎨 CANVAS: Adding pixel at', pixelUpdate.x, pixelUpdate.y, 'with color', pixelUpdate.color);
           updatePixel(pixelUpdate.x, pixelUpdate.y, pixelUpdate.color, pixelUpdate.owner);
         }
       } else if (eventType === 'canvas-state-changed') {
         const state = data as CanvasState;
+        console.log('🎨 CANVAS: Updating canvas state:', state);
         setCanvasState(state);
       }
     };
 
+    console.log('🎨 CANVAS: Subscribing to Multisynq view events');
     // Subscribe to Multisynq view events
     subscribeToViewEvents(handleViewEvent);
 
     return () => {
+      console.log('🎨 CANVAS: Unsubscribing from Multisynq view events');
       // Cleanup is handled by Multisynq
     };
   }, [walletAddress, updatePixel, subscribeToViewEvents]);
