@@ -23,10 +23,10 @@ export class CanvasView extends View {
   init() {
     console.log('🎨 CanvasView initialized');
     
-    // Listen for model events
-    this.subscribe('canvas', 'pixel-updated', this.handlePixelUpdated.bind(this));
-    this.subscribe('canvas', 'canvas-cleared', this.handleCanvasCleared.bind(this));
-    this.subscribe('canvas', 'canvas-state-changed', this.handleCanvasStateChanged.bind(this));
+    // Listen for model events using sessionId (from parent)
+    this.subscribe('session', 'pixel-updated', this.handlePixelUpdated.bind(this));
+    this.subscribe('session', 'canvas-cleared', this.handleCanvasCleared.bind(this));
+    this.subscribe('session', 'canvas-state-changed', this.handleCanvasStateChanged.bind(this));
   }
 
   // Handle pixel updates from model
@@ -49,12 +49,12 @@ export class CanvasView extends View {
 
   // Send pixel update to model
   sendPixelUpdate(pixelUpdate: PixelUpdate) {
-    this.publish('canvas', 'pixel-update', pixelUpdate);
+    this.publish('session', 'pixel-update', pixelUpdate);
   }
 
   // Send canvas clear to model
   sendCanvasClear() {
-    this.publish('canvas', 'canvas-clear', { timestamp: Date.now() });
+    this.publish('session', 'canvas-clear', { timestamp: Date.now() });
   }
 
   // Update selected color

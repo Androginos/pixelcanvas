@@ -21,9 +21,9 @@ export class CanvasModel extends Model {
   init() {
     console.log('🎨 CanvasModel initialized');
     
-    // Subscribe to pixel update events from views
-    this.subscribe('canvas', 'pixel-update', this.handlePixelUpdate.bind(this));
-    this.subscribe('canvas', 'canvas-clear', this.handleCanvasClear.bind(this));
+    // Subscribe to pixel update events from views using sessionId
+    this.subscribe(this.sessionId, 'pixel-update', this.handlePixelUpdate.bind(this));
+    this.subscribe(this.sessionId, 'canvas-clear', this.handleCanvasClear.bind(this));
   }
 
   // Handle pixel update from any view
@@ -45,9 +45,9 @@ export class CanvasModel extends Model {
     this.lastUpdated = this.now(); // Use synchronized time
     this.totalPixels = Object.keys(this.pixels).length;
     
-    // Publish the update to all views
-    this.publish('canvas', 'pixel-updated', pixelUpdate);
-    this.publish('canvas', 'canvas-state-changed', this.getState());
+    // Publish the update to all views using sessionId
+    this.publish(this.sessionId, 'pixel-updated', pixelUpdate);
+    this.publish(this.sessionId, 'canvas-state-changed', this.getState());
   }
 
   // Handle canvas clear from any view
@@ -56,8 +56,8 @@ export class CanvasModel extends Model {
     this.lastUpdated = this.now();
     this.totalPixels = 0;
     
-    this.publish('canvas', 'canvas-cleared', { timestamp: this.now() });
-    this.publish('canvas', 'canvas-state-changed', this.getState());
+    this.publish(this.sessionId, 'canvas-cleared', { timestamp: this.now() });
+    this.publish(this.sessionId, 'canvas-state-changed', this.getState());
   }
 
   // Get current state
