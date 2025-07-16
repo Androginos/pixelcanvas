@@ -73,7 +73,8 @@ export default function PixelPlaceCanvas({
     isConnected: multisynqConnected,
     publishPixelUpdate,
     subscribeToPixelUpdates,
-    unsubscribeFromPixelUpdates
+    unsubscribeFromPixelUpdates,
+    sessionInfo
   } = useMultisynqSession({
     sessionId,
     userId,
@@ -171,6 +172,29 @@ export default function PixelPlaceCanvas({
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 3;
     ctx.strokeRect(canvasBorderX, canvasBorderY, canvasBorderWidth, canvasBorderHeight);
+
+    // Draw session info panel
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    ctx.fillRect(10, 10, 400, 80);
+    
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '14px Arial';
+    ctx.fillText(`Session: ${sessionInfo.sessionId || sessionId}`, 20, 30);
+    ctx.fillText(`Connected: ${multisynqConnected ? 'Yes' : 'No'}`, 20, 50);
+    ctx.fillText(`Total Pixels: ${canvasState.totalPixels}`, 20, 70);
+    
+    // Draw current tool and color info
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    ctx.fillRect(10, 100, 200, 60);
+    
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '12px Arial';
+    ctx.fillText(`Tool: ${currentTool}`, 20, 120);
+    ctx.fillText(`Color: ${selectedColor}`, 20, 140);
+    
+    // Draw color preview
+    ctx.fillStyle = selectedColor;
+    ctx.fillRect(20, 145, 20, 10);
 
     // Draw hover pixel preview
     if (hoverPixel) {

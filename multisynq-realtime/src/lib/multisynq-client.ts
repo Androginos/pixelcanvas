@@ -262,6 +262,16 @@ export class MultisynqCanvasClient {
   getSessionId(): string {
     return this.sessionId;
   }
+
+  // Get detailed session info
+  getSessionInfo() {
+    return {
+      sessionId: this.sessionId,
+      isConnected: this.isConnected,
+      modelState: this.model?.getState() || null,
+      viewState: this.view?.getState() || null
+    };
+  }
 }
 
 // Global client instance

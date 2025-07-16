@@ -16,6 +16,7 @@ interface UseMultisynqSessionReturn {
   subscribeToPixelUpdates: (callback: (pixelUpdate: PixelUpdate) => void) => void;
   unsubscribeFromPixelUpdates: (callback: (pixelUpdate: PixelUpdate) => void) => void;
   getSessionInfo: () => { sessionId: string; isConnected: boolean };
+  sessionInfo: { sessionId: string; isConnected: boolean };
 }
 
 export function useMultisynqSession({
@@ -24,19 +25,30 @@ export function useMultisynqSession({
   walletAddress
 }: UseMultisynqSessionProps): UseMultisynqSessionReturn {
   const [isConnected, setIsConnected] = useState(false);
+  const [sessionInfo, setSessionInfo] = useState({ sessionId: '', isConnected: false });
   const [client] = useState(() => getMultisynqClient());
 
   // Connect to session
   const connectToSession = useCallback(async () => {
     try {
-      await client.connect(sessionId);
+      // Multisynq handles session ID automatically via App.autoSession()
+      await client.connect();
       setIsConnected(true);
-      console.log('✅ Connected to Multisynq session:', sessionId);
+      
+      // Update session info
+      const info = client.getSessionInfo();
+      setSessionInfo({
+        sessionId: info.sessionId,
+        isConnected: info.isConnected
+      });
+      
+      console.log('✅ Connected to Multisynq session');
     } catch (error) {
       console.error('❌ Failed to connect to session:', error);
       setIsConnected(false);
+      setSessionInfo({ sessionId: '', isConnected: false });
     }
-  }, [client, sessionId]);
+  }, [client]);
 
   // Disconnect from session
   const disconnectFromSession = useCallback(async () => {
@@ -65,12 +77,20 @@ export function useMultisynqSession({
 
   // Subscribe to pixel updates
   const subscribeToPixelUpdates = useCallback((callback: (pixelUpdate: PixelUpdate) => void) => {
-    client.subscribe(EVENTS.PIXEL_UPDATE, callback);
+    client.subscribe(EVENTS.PIXEL_UPDATE, (data: unknown) => {
+      if (typeof data === 'object' && data !== null) {
+        callback(data as PixelUpdate);
+      }
+    });
   }, [client]);
 
   // Unsubscribe from pixel updates
   const unsubscribeFromPixelUpdates = useCallback((callback: (pixelUpdate: PixelUpdate) => void) => {
-    client.unsubscribe(EVENTS.PIXEL_UPDATE, callback);
+    client.unsubscribe(EVENTS.PIXEL_UPDATE, (data: unknown) => {
+      if (typeof data === 'object' && data !== null) {
+        callback(data as PixelUpdate);
+      }
+    });
   }, [client]);
 
   // Get session info
@@ -94,6 +114,7 @@ export function useMultisynqSession({
     publishPixelUpdate,
     subscribeToPixelUpdates,
     unsubscribeFromPixelUpdates,
-    getSessionInfo
+    getSessionInfo,
+    sessionInfo
   };
 } 
