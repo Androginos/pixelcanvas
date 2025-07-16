@@ -422,8 +422,6 @@ export default function PixelPlaceCanvas({
 
   // Handle mouse events
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    e.preventDefault(); // Prevent default to avoid passive listener issues
-    
     if (dragging && dragStart.current) {
       const dx = e.clientX - dragStart.current.x;
       const dy = e.clientY - dragStart.current.y;
@@ -459,8 +457,6 @@ export default function PixelPlaceCanvas({
   }, [dragging, getPixelCoord, scale, canvasConfig.width, canvasConfig.height]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault(); // Prevent default to avoid passive listener issues
-    
     if (e.button === 1) return; // Middle click
     if (e.button === 2) { // Right click - erase
       setCurrentTool('erase');
@@ -473,8 +469,6 @@ export default function PixelPlaceCanvas({
   }, []);
 
   const handleMouseUp = useCallback((e: React.MouseEvent) => {
-    e.preventDefault(); // Prevent default to avoid passive listener issues
-    
     setDragging(false);
     dragStart.current = null;
     // Reset hasMoved after a short delay to allow for click detection
@@ -482,8 +476,6 @@ export default function PixelPlaceCanvas({
   }, []);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
-    
     // Reduce zoom sensitivity - smaller increments
     const zoomFactor = 0.2;
     const zoom = e.deltaY > 0 ? -zoomFactor : zoomFactor;
@@ -580,17 +572,73 @@ export default function PixelPlaceCanvas({
     return () => clearInterval(interval);
   }, [userId, userCooldowns, canvasConfig]);
 
+  // Add non-passive event listeners to prevent preventDefault errors
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const handleMouseMoveNonPassive = (e: MouseEvent) => {
+      e.preventDefault();
+      handleMouseMove(e as any);
+    };
+
+    const handleMouseDownNonPassive = (e: MouseEvent) => {
+      e.preventDefault();
+      handleMouseDown(e as any);
+    };
+
+    const handleMouseUpNonPassive = (e: MouseEvent) => {
+      e.preventDefault();
+      handleMouseUp(e as any);
+    };
+
+    const handleWheelNonPassive = (e: WheelEvent) => {
+      e.preventDefault();
+      handleWheel(e as any);
+    };
+
+    const handleTouchStartNonPassive = (e: TouchEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    const handleTouchMoveNonPassive = (e: TouchEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    const handleTouchEndNonPassive = (e: TouchEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    // Add non-passive event listeners
+    canvas.addEventListener('mousemove', handleMouseMoveNonPassive, { passive: false });
+    canvas.addEventListener('mousedown', handleMouseDownNonPassive, { passive: false });
+    canvas.addEventListener('mouseup', handleMouseUpNonPassive, { passive: false });
+    canvas.addEventListener('wheel', handleWheelNonPassive, { passive: false });
+    canvas.addEventListener('touchstart', handleTouchStartNonPassive, { passive: false });
+    canvas.addEventListener('touchmove', handleTouchMoveNonPassive, { passive: false });
+    canvas.addEventListener('touchend', handleTouchEndNonPassive, { passive: false });
+
+    return () => {
+      canvas.removeEventListener('mousemove', handleMouseMoveNonPassive);
+      canvas.removeEventListener('mousedown', handleMouseDownNonPassive);
+      canvas.removeEventListener('mouseup', handleMouseUpNonPassive);
+      canvas.removeEventListener('wheel', handleWheelNonPassive);
+      canvas.removeEventListener('touchstart', handleTouchStartNonPassive);
+      canvas.removeEventListener('touchmove', handleTouchMoveNonPassive);
+      canvas.removeEventListener('touchend', handleTouchEndNonPassive);
+    };
+  }, [handleMouseMove, handleMouseDown, handleMouseUp, handleWheel]);
+
   return (
     <div className="relative w-full h-full">
       {/* Full Screen Canvas */}
       <canvas
         ref={canvasRef}
         onClick={handleClick}
-        onMouseMove={handleMouseMove}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
-        onWheel={handleWheel}
         onContextMenu={(e) => e.preventDefault()}
         className="block cursor-crosshair select-none"
         style={{
@@ -598,10 +646,6 @@ export default function PixelPlaceCanvas({
           width: '100vw',
           height: '100vh'
         }}
-        // Add non-passive event listeners to prevent preventDefault errors
-        onTouchStart={(e) => e.preventDefault()}
-        onTouchMove={(e) => e.preventDefault()}
-        onTouchEnd={(e) => e.preventDefault()}
       />
 
       {/* Left Side Controls */}

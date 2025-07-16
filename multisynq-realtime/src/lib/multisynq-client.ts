@@ -265,6 +265,13 @@ export class MultisynqCanvasClient {
           console.log('🔍 View object has init method:', typeof this.view.init);
           console.log('🔍 View object has subscribe method:', typeof this.view.subscribe);
           console.log('🔍 View object has publish method:', typeof this.view.publish);
+          
+          // Manually call init if it exists and hasn't been called
+          if (typeof this.view.init === 'function') {
+            console.log('🔧 Manually calling View.init()...');
+            this.view.init();
+            console.log('🔧 View.init() called successfully');
+          }
         }
         
         // Set up view event listeners
