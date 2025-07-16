@@ -23,6 +23,31 @@ export const EVENTS = {
   USER_LEAVE: 'user-leave'
 } as const;
 
+// URL management utilities
+export function getSessionIdFromUrl(): string {
+  if (typeof window === 'undefined') return 'default-session';
+  
+  const urlParams = new URLSearchParams(window.location.search);
+  const sessionId = urlParams.get('session') || 'default-session';
+  return sessionId;
+}
+
+export function getShareableUrl(sessionId: string): string {
+  if (typeof window === 'undefined') return '';
+  
+  const url = new URL(window.location.href);
+  url.searchParams.set('session', sessionId);
+  return url.toString();
+}
+
+export function updateUrlWithSession(sessionId: string): void {
+  if (typeof window === 'undefined') return;
+  
+  const url = new URL(window.location.href);
+  url.searchParams.set('session', sessionId);
+  window.history.replaceState({}, '', url.toString());
+}
+
 // Mock Multisynq classes for development
 class MockModel {
   pixels: Record<string, { color: string; owner: string; timestamp: number }> = {};
@@ -108,20 +133,25 @@ export class MultisynqCanvasClient {
   }
 
   // Initialize and connect to session
-  async connect(sessionId: string): Promise<void> {
-    this.sessionId = sessionId;
+  async connect(sessionId?: string): Promise<void> {
+    // Get session ID from URL if not provided
+    this.sessionId = sessionId || getSessionIdFromUrl();
+    
+    // Update URL with session ID
+    updateUrlWithSession(this.sessionId);
     
     try {
       if (!MULTISYNQ_CONFIG.useMock && typeof window !== 'undefined') {
         // SSR koruması - sadece client-side'da çalıştır
-        const { Session } = await import('@multisynq/client');
+        const { Session, App } = await import('@multisynq/client');
 
-        // Connect to real Multisynq session - Official GitHub example style
+        // Use Multisynq's auto session management
         const sessionParams = {
           apiKey: MULTISYNQ_CONFIG.apiKey,
           appId: MULTISYNQ_CONFIG.appId,
-          name: sessionId,
-          password: 'pixelcanvas2024',
+          // Use auto session management for URL-based sharing
+          name: App.autoSession(),
+          password: App.autoPassword(),
           // Both model and view classes are needed
           model: CanvasModel,
           view: CanvasView
@@ -130,8 +160,8 @@ export class MultisynqCanvasClient {
         console.log('🔧 Attempting to connect with params:', {
           apiKey: MULTISYNQ_CONFIG.apiKey.substring(0, 10) + '...',
           appId: MULTISYNQ_CONFIG.appId,
-          name: sessionId,
-          password: 'pixelcanvas2024',
+          name: sessionParams.name,
+          password: sessionParams.password,
           modelClass: CanvasModel.name,
           viewClass: CanvasView.name
         });
@@ -143,7 +173,7 @@ export class MultisynqCanvasClient {
         // Set up view event listeners
         this.setupViewListeners();
         
-        console.log('🔗 Connected to real Multisynq session:', sessionId);
+        console.log('🔗 Connected to real Multisynq session:', sessionParams.name);
       } else {
         // Use mock classes
         this.model = new MockModel();
