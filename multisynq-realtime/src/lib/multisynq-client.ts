@@ -2,6 +2,8 @@
 
 // Multisynq Client Configuration
 import { PixelUpdate } from '@/types/pixelplace';
+import { CanvasModel } from './multisynq-model';
+import { CanvasView } from './multisynq-view';
 
 // Multisynq configuration
 export const MULTISYNQ_CONFIG = {
@@ -111,8 +113,8 @@ export class MultisynqCanvasClient {
       if (!MULTISYNQ_CONFIG.useMock && typeof window !== 'undefined') {
         // SSR koruması - sadece client-side'da çalıştır
         const { Session } = await import('@multisynq/client');
-        const { CanvasModel } = await import('./multisynq-model');
-        const { CanvasView } = await import('./multisynq-view');
+        // const { CanvasModel } = await import('./multisynq-model'); // This line is removed
+        // const { CanvasView } = await import('./multisynq-view'); // This line is removed
 
         // Connect to real Multisynq session - GitHub example style
         const sessionParams = {
