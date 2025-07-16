@@ -30,22 +30,86 @@ class MockModel {
   pixels: Record<string, { color: string; owner: string; timestamp: number }> = {};
   lastUpdated: number = Date.now();
   totalPixels: number = 0;
+  private listeners: Map<string, Array<(data: unknown) => void>> = new Map();
 
-  updatePixel(pixelUpdate: PixelUpdate) {
+  constructor() {
+    console.log('🎯 MockModel initialized');
+    console.log('🎯 MockModel: Setting up event subscriptions...');
+    
+    // Subscribe to pixel update events from views using model scope
+    this.subscribe('model', 'pixel-update', this.handlePixelUpdate.bind(this));
+    console.log('🎯 MockModel: Subscribed to model:pixel-update');
+    
+    this.subscribe('model', 'canvas-clear', this.handleCanvasClear.bind(this));
+    console.log('🎯 MockModel: Subscribed to model:canvas-clear');
+    
+    console.log('🎯 MockModel: All subscriptions set up successfully');
+  }
+
+  // Handle pixel update from any view
+  handlePixelUpdate(data: unknown) {
+    const pixelUpdate = data as PixelUpdate;
+    console.log('🎯 MockModel: Received pixel update event:', pixelUpdate);
+    console.log('🎯 MockModel: Current pixels count:', Object.keys(this.pixels).length);
+    
     const key = `${pixelUpdate.x}_${pixelUpdate.y}`;
     
     if (pixelUpdate.color === 'transparent') {
+      // Remove pixel
       delete this.pixels[key];
+      console.log('🎯 MockModel: Removed pixel at', key);
     } else {
+      // Add/update pixel
       this.pixels[key] = {
         color: pixelUpdate.color,
         owner: pixelUpdate.owner,
         timestamp: pixelUpdate.timestamp
       };
+      console.log('🎯 MockModel: Added/updated pixel at', key, 'with color', pixelUpdate.color);
     }
     
     this.lastUpdated = Date.now();
     this.totalPixels = Object.keys(this.pixels).length;
+    
+    // Publish the update to all views using session scope
+    console.log('🎯 MockModel: Publishing pixel-updated to session scope');
+    console.log('🎯 MockModel: Publishing event with data:', pixelUpdate);
+    this.publish('session', 'pixel-updated', pixelUpdate);
+    console.log('🎯 MockModel: pixel-updated event published successfully');
+    
+    console.log('🎯 MockModel: Publishing canvas-state-changed to session scope');
+    this.publish('session', 'canvas-state-changed', this.getState());
+    console.log('🎯 MockModel: canvas-state-changed event published successfully');
+  }
+
+  // Handle canvas clear from any view
+  handleCanvasClear(data: unknown) {
+    const clearData = data as { timestamp: number };
+    this.pixels = {};
+    this.lastUpdated = Date.now();
+    this.totalPixels = 0;
+    
+    this.publish('session', 'canvas-cleared', { timestamp: Date.now() });
+    this.publish('session', 'canvas-state-changed', this.getState());
+  }
+
+  updatePixel(pixelUpdate: PixelUpdate) {
+    // Legacy method for backward compatibility
+    this.handlePixelUpdate(pixelUpdate);
+  }
+
+  subscribe(scope: string, event: string, callback: (data: unknown) => void) {
+    if (!this.listeners.has(event)) {
+      this.listeners.set(event, []);
+    }
+    this.listeners.get(event)!.push(callback);
+  }
+
+  publish(scope: string, event: string, data: unknown) {
+    const listeners = this.listeners.get(event);
+    if (listeners) {
+      listeners.forEach(callback => callback(data));
+    }
   }
 
   getState() {
@@ -65,6 +129,50 @@ class MockView {
   isConnected: boolean = false;
   currentTool: 'draw' | 'erase' = 'draw';
   private listeners: Map<string, Array<(data: unknown) => void>> = new Map();
+
+  constructor() {
+    console.log('🎨 MockView initialized');
+    console.log('🎨 MockView: Setting up event subscriptions...');
+    
+    // Simulate the same subscriptions as real CanvasView
+    this.subscribe('session', 'pixel-updated', this.handlePixelUpdated.bind(this));
+    console.log('🎨 MockView: Subscribed to session:pixel-updated');
+    
+    this.subscribe('session', 'canvas-cleared', this.handleCanvasCleared.bind(this));
+    console.log('🎨 MockView: Subscribed to session:canvas-cleared');
+    
+    this.subscribe('session', 'canvas-state-changed', this.handleCanvasStateChanged.bind(this));
+    console.log('🎨 MockView: Subscribed to session:canvas-state-changed');
+    
+    console.log('🎨 MockView: All subscriptions set up successfully');
+  }
+
+  // Mock event handlers
+  handlePixelUpdated(data: unknown) {
+    const pixelUpdate = data as any;
+    console.log('🎨 MockView: Received pixel-updated event from model:', pixelUpdate);
+    console.log('🎨 MockView: Publishing to UI components...');
+    this.publish('ui', 'ui-pixel-update', pixelUpdate);
+    console.log('🎨 MockView: UI event published successfully');
+  }
+
+  handleCanvasCleared(data: unknown) {
+    console.log('🎨 MockView: Received canvas-cleared event from model:', data);
+    this.publish('ui', 'ui-canvas-clear', data);
+  }
+
+  handleCanvasStateChanged(data: unknown) {
+    console.log('🎨 MockView: Received canvas-state-changed event from model:', data);
+    this.publish('ui', 'ui-canvas-state-changed', data);
+  }
+
+  // Send pixel update to model (mock implementation)
+  sendPixelUpdate(pixelUpdate: any) {
+    console.log('🎨 MockView: Sending pixel update to model:', pixelUpdate);
+    console.log('🎨 MockView: Using model scope for publish...');
+    this.publish('model', 'pixel-update', pixelUpdate);
+    console.log('🎨 MockView: Pixel update published to model successfully');
+  }
 
   subscribe(scope: string, event: string, callback: (data: unknown) => void) {
     if (!this.listeners.has(event)) {
@@ -140,13 +248,24 @@ export class MultisynqCanvasClient {
           viewClass: CanvasView.name
         });
         
+        console.log('🔧 Calling Session.join with params:', sessionParams);
         this.session = await Session.join(sessionParams);
+        console.log('🔧 Session.join completed, session object:', this.session);
+        
         this.model = this.session?.model || null;
         this.view = this.session?.view || null;
         
         console.log('🔍 Session object:', this.session);
         console.log('🔍 Model object:', this.model);
         console.log('🔍 View object:', this.view);
+        console.log('🔍 View object type:', typeof this.view);
+        console.log('🔍 View object constructor:', this.view?.constructor?.name);
+        
+        if (this.view) {
+          console.log('🔍 View object has init method:', typeof this.view.init);
+          console.log('🔍 View object has subscribe method:', typeof this.view.subscribe);
+          console.log('🔍 View object has publish method:', typeof this.view.publish);
+        }
         
         // Set up view event listeners
         this.setupViewListeners();
