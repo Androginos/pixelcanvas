@@ -15,6 +15,8 @@ interface UseMultisynqSessionReturn {
   publishPixelUpdate: (pixelUpdate: PixelUpdate) => Promise<void>;
   subscribeToPixelUpdates: (callback: (pixelUpdate: PixelUpdate) => void) => void;
   unsubscribeFromPixelUpdates: (callback: (pixelUpdate: PixelUpdate) => void) => void;
+  subscribeToViewEvents: (callback: (eventType: string, data: unknown) => void) => void;
+  sendPixelUpdateToModel: (pixelUpdate: PixelUpdate) => Promise<void>;
   getSessionInfo: () => { sessionId: string; isConnected: boolean };
   sessionInfo: { sessionId: string; isConnected: boolean };
 }
@@ -97,6 +99,16 @@ export function useMultisynqSession({
     });
   }, [client]);
 
+  // Subscribe to Multisynq view events
+  const subscribeToViewEvents = useCallback((callback: (eventType: string, data: unknown) => void) => {
+    client.subscribeToViewEvents(callback);
+  }, [client]);
+
+  // Send pixel update to Multisynq model
+  const sendPixelUpdateToModel = useCallback(async (pixelUpdate: PixelUpdate) => {
+    await client.sendPixelUpdateToModel(pixelUpdate);
+  }, [client]);
+
   // Get session info
   const getSessionInfo = useCallback(() => ({
     sessionId: client.getSessionId(),
@@ -118,6 +130,8 @@ export function useMultisynqSession({
     publishPixelUpdate,
     subscribeToPixelUpdates,
     unsubscribeFromPixelUpdates,
+    subscribeToViewEvents,
+    sendPixelUpdateToModel,
     getSessionInfo,
     sessionInfo
   };

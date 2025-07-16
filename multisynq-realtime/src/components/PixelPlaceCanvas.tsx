@@ -74,6 +74,8 @@ export default function PixelPlaceCanvas({
     publishPixelUpdate,
     subscribeToPixelUpdates,
     unsubscribeFromPixelUpdates,
+    subscribeToViewEvents,
+    sendPixelUpdateToModel,
     sessionInfo
   } = useMultisynqSession({
     sessionId,
@@ -378,11 +380,11 @@ export default function PixelPlaceCanvas({
         timestamp: Date.now()
       };
 
-      // Send via Multisynq
+      // Send via Multisynq model
       try {
-        await publishPixelUpdate(pixelUpdate);
+        await sendPixelUpdateToModel(pixelUpdate);
       } catch (error) {
-        console.error('Failed to publish pixel update:', error);
+        console.error('Failed to send pixel update to model:', error);
       }
     } else if (currentTool === 'erase') {
       // Remove pixel locally
@@ -409,9 +411,9 @@ export default function PixelPlaceCanvas({
       };
 
       try {
-        await publishPixelUpdate(pixelUpdate);
+        await sendPixelUpdateToModel(pixelUpdate);
       } catch (error) {
-        console.error('Failed to publish pixel removal:', error);
+        console.error('Failed to send pixel removal to model:', error);
       }
     }
   }, [isConnected, walletAddress, userId, userCooldowns, canvasConfig, selectedColor, currentTool, hasMoved, sessionId, updatePixel, getPixelCoord]);
@@ -511,38 +513,45 @@ export default function PixelPlaceCanvas({
     });
   }, [scale, offset, canvasConfig.width, canvasConfig.height]);
 
-  // Listen for pixel updates from other users
+  // Listen for pixel updates from other users via Multisynq
   useEffect(() => {
-    const handlePixelUpdate = (pixelUpdate: PixelUpdate) => {
-      if (pixelUpdate.owner === walletAddress) return; // Don't update own pixels
+    const handleViewEvent = (eventType: string, data: unknown) => {
+      console.log('🎨 Multisynq view event:', eventType, data);
       
-      if (pixelUpdate.color === 'transparent') {
-        // Handle pixel removal
-        setCanvasState(prev => {
-          const newPixels = { ...prev.pixels };
-          const key = pixelKey(pixelUpdate.x, pixelUpdate.y);
-          delete newPixels[key];
-          
-          return {
-            ...prev,
-            pixels: newPixels,
-            lastUpdated: Date.now(),
-            totalPixels: Object.keys(newPixels).length
-          };
-        });
-      } else {
-        updatePixel(pixelUpdate.x, pixelUpdate.y, pixelUpdate.color, pixelUpdate.owner);
+      if (eventType === 'pixel-update') {
+        const pixelUpdate = data as PixelUpdate;
+        if (pixelUpdate.owner === walletAddress) return; // Don't update own pixels
+        
+        if (pixelUpdate.color === 'transparent') {
+          // Handle pixel removal
+          setCanvasState(prev => {
+            const newPixels = { ...prev.pixels };
+            const key = pixelKey(pixelUpdate.x, pixelUpdate.y);
+            delete newPixels[key];
+            
+            return {
+              ...prev,
+              pixels: newPixels,
+              lastUpdated: Date.now(),
+              totalPixels: Object.keys(newPixels).length
+            };
+          });
+        } else {
+          updatePixel(pixelUpdate.x, pixelUpdate.y, pixelUpdate.color, pixelUpdate.owner);
+        }
+      } else if (eventType === 'canvas-state-changed') {
+        const state = data as CanvasState;
+        setCanvasState(state);
       }
     };
 
-    // Subscribe to both mock and real Multisynq events
-    subscribeToPixelUpdates(handlePixelUpdate);
+    // Subscribe to Multisynq view events
+    subscribeToViewEvents(handleViewEvent);
 
     return () => {
-      // Cleanup listeners
-      unsubscribeFromPixelUpdates(handlePixelUpdate);
+      // Cleanup is handled by Multisynq
     };
-  }, [walletAddress, updatePixel, subscribeToPixelUpdates, unsubscribeFromPixelUpdates]);
+  }, [walletAddress, updatePixel, subscribeToViewEvents]);
 
   // Auto-update cooldown timer every 100ms
   useEffect(() => {

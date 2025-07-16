@@ -222,6 +222,32 @@ export class MultisynqCanvasClient {
     this.listeners.get(eventType)!.push(callback);
   }
 
+  // Subscribe to Multisynq view events
+  async subscribeToViewEvents(callback: (eventType: string, data: unknown) => void): Promise<void> {
+    if (!this.view) return;
+
+    // Listen to UI events from view
+    this.view.subscribe('ui', 'ui-pixel-update', (data: unknown) => {
+      callback('pixel-update', data);
+    });
+
+    this.view.subscribe('ui', 'ui-canvas-clear', (data: unknown) => {
+      callback('canvas-clear', data);
+    });
+
+    this.view.subscribe('ui', 'ui-canvas-state-changed', (data: unknown) => {
+      callback('canvas-state-changed', data);
+    });
+  }
+
+  // Send pixel update to Multisynq model
+  async sendPixelUpdateToModel(pixelUpdate: PixelUpdate): Promise<void> {
+    if (!this.view) return;
+
+    // Send to model via view
+    this.view.sendPixelUpdate(pixelUpdate);
+  }
+
   // Unsubscribe from events
   async unsubscribe(eventType: string, callback: (data: unknown) => void): Promise<void> {
     const listeners = this.listeners.get(eventType);
