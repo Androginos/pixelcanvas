@@ -23,30 +23,7 @@ export const EVENTS = {
   USER_LEAVE: 'user-leave'
 } as const;
 
-// URL management utilities
-export function getSessionIdFromUrl(): string {
-  if (typeof window === 'undefined') return 'default-session';
-  
-  const urlParams = new URLSearchParams(window.location.search);
-  const sessionId = urlParams.get('session') || 'default-session';
-  return sessionId;
-}
-
-export function getShareableUrl(sessionId: string): string {
-  if (typeof window === 'undefined') return '';
-  
-  const url = new URL(window.location.href);
-  url.searchParams.set('session', sessionId);
-  return url.toString();
-}
-
-export function updateUrlWithSession(sessionId: string): void {
-  if (typeof window === 'undefined') return;
-  
-  const url = new URL(window.location.href);
-  url.searchParams.set('session', sessionId);
-  window.history.replaceState({}, '', url.toString());
-}
+// Multisynq handles URL management automatically via App.autoSession() and App.autoPassword()
 
 // Mock Multisynq classes for development
 class MockModel {
@@ -134,11 +111,8 @@ export class MultisynqCanvasClient {
 
   // Initialize and connect to session
   async connect(sessionId?: string): Promise<void> {
-    // Get session ID from URL if not provided
-    this.sessionId = sessionId || getSessionIdFromUrl();
-    
-    // Update URL with session ID
-    updateUrlWithSession(this.sessionId);
+    // Multisynq handles session ID automatically via App.autoSession()
+    this.sessionId = sessionId || 'auto-session';
     
     try {
       if (!MULTISYNQ_CONFIG.useMock && typeof window !== 'undefined') {
