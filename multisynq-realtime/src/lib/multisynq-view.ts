@@ -133,4 +133,9 @@ export class CanvasView extends View {
   getFutureTimestamp(delayMs: number): number {
     return Date.now() + delayMs; // Fallback to current time + delay
   }
+}
+
+// Register the view class globally
+if (typeof window !== 'undefined') {
+  (window as any).CanvasView = CanvasView;
 } 

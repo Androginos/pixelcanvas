@@ -98,6 +98,11 @@ export class CanvasModel extends Model {
   }
 }
 
+// Register the model class globally
+if (typeof window !== 'undefined') {
+  (window as any).CanvasModel = CanvasModel;
+}
+
 export function createInitialState(): CanvasMultisynqState {
   return {
     pixels: {},
