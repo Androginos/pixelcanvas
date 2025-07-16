@@ -55,8 +55,13 @@ export class CanvasModel extends Model {
     
     // Publish the update to all views using session scope
     console.log('🎯 MODEL: Publishing pixel-updated to session scope');
+    console.log('🎯 MODEL: Publishing event with data:', pixelUpdate);
     this.publish('session', 'pixel-updated', pixelUpdate);
+    console.log('🎯 MODEL: pixel-updated event published successfully');
+    
+    console.log('🎯 MODEL: Publishing canvas-state-changed to session scope');
     this.publish('session', 'canvas-state-changed', this.getState());
+    console.log('🎯 MODEL: canvas-state-changed event published successfully');
   }
 
   // Handle canvas clear from any view

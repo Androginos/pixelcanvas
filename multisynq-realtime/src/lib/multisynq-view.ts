@@ -22,11 +22,19 @@ export class CanvasView extends View {
 
   init() {
     console.log('🎨 CanvasView initialized');
+    console.log('🎨 CanvasView: Setting up event subscriptions...');
     
     // Listen for model events using session scope
     this.subscribe('session', 'pixel-updated', this.handlePixelUpdated);
+    console.log('🎨 CanvasView: Subscribed to session:pixel-updated');
+    
     this.subscribe('session', 'canvas-cleared', this.handleCanvasCleared);
+    console.log('🎨 CanvasView: Subscribed to session:canvas-cleared');
+    
     this.subscribe('session', 'canvas-state-changed', this.handleCanvasStateChanged);
+    console.log('🎨 CanvasView: Subscribed to session:canvas-state-changed');
+    
+    console.log('🎨 CanvasView: All subscriptions set up successfully');
   }
 
   // Handle pixel updates from model
