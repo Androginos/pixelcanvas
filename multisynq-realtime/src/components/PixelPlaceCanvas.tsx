@@ -20,20 +20,23 @@ interface PixelPlaceCanvasProps {
   userId: string;
   walletAddress: string;
   config?: Partial<CanvasConfig>;
+  onBackToMenu?: () => void;
+  onDisconnect?: () => void;
 }
 
 const CANVAS_SIZE = 1000;
-const PIXEL_SIZE = 1;
-const GRID_BACKGROUND = '#F0F0F0';
+const PIXEL_SIZE = 50;
+const GRID_BACKGROUND = '#171717';
 
-type Tool = 'draw' | 'erase';
+type Tool = 'draw' | 'erase' | 'move';
 
 export default function PixelPlaceCanvas({ 
   sessionId, 
   userId, 
-  
   walletAddress,
-  config = {} 
+  config = {},
+  onBackToMenu,
+  onDisconnect
 }: PixelPlaceCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const minimapRef = useRef<HTMLCanvasElement>(null);
@@ -52,11 +55,17 @@ export default function PixelPlaceCanvas({
   const [selectedColor, setSelectedColor] = useState<string>('#FF0000');
   const [userCooldowns, setUserCooldowns] = useState<Map<string, UserCooldown>>(new Map());
   const [hoverPixel, setHoverPixel] = useState<[number, number] | null>(null);
-  const [scale, setScale] = useState(10); // zoom seviyesi
+  const [scale, setScale] = useState(() => {
+    // Calculate initial scale to fit entire canvas on screen
+    const scaleX = window.innerWidth / canvasConfig.width;
+    const scaleY = window.innerHeight / canvasConfig.height;
+    return Math.min(scaleX, scaleY) * 0.9; // 90% to leave some margin
+  }); // zoom seviyesi
   const [offset, setOffset] = useState(() => {
-    // Initialize offset to center the canvas
-    const canvasWidth = canvasConfig.width * 10;
-    const canvasHeight = canvasConfig.height * 10;
+    // Initialize offset to center the canvas with fit to screen scale
+    const initialScale = Math.min(window.innerWidth / canvasConfig.width, window.innerHeight / canvasConfig.height) * 0.9;
+    const canvasWidth = canvasConfig.width * initialScale;
+    const canvasHeight = canvasConfig.height * initialScale;
     return {
       x: (window.innerWidth - canvasWidth) / 2,
       y: (window.innerHeight - canvasHeight) / 2
@@ -85,6 +94,8 @@ export default function PixelPlaceCanvas({
   
   const dragStart = useRef<{ x: number, y: number } | null>(null);
   const lastMousePos = useRef<{ x: number, y: number } | null>(null);
+
+
 
   // Calculate center offset to keep canvas centered
   const getCenteredOffset = useCallback((currentScale: number) => {
@@ -115,6 +126,8 @@ export default function PixelPlaceCanvas({
     initializeCanvas();
   }, [sessionId]);
 
+
+
   // Render function with requestAnimationFrame
   const render = useCallback(() => {
     const canvas = canvasRef.current;
@@ -126,46 +139,69 @@ export default function PixelPlaceCanvas({
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Fill background
+    // Fill entire background with dark color
     ctx.fillStyle = GRID_BACKGROUND;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Draw grid (optional, for development)
+    // Calculate canvas area
+    const canvasAreaX = offset.x;
+    const canvasAreaY = offset.y;
+    const canvasAreaWidth = canvasConfig.width * scale;
+    const canvasAreaHeight = canvasConfig.height * scale;
+
+    // Fill canvas area with light gray
+    ctx.fillStyle = '#F0F0F0';
+    ctx.fillRect(canvasAreaX, canvasAreaY, canvasAreaWidth, canvasAreaHeight);
+
+    // Draw grid only inside canvas area
     if (scale > 4) {
       ctx.strokeStyle = '#E0E0E0';
       ctx.lineWidth = 1;
       
-      // Calculate grid start and end positions
-      const startX = Math.floor(-offset.x / scale) * scale;
-      const startY = Math.floor(-offset.y / scale) * scale;
-      const endX = startX + canvas.width + scale;
-      const endY = startY + canvas.height + scale;
+      // Calculate grid start and end positions within canvas bounds
+      const gridStartX = Math.max(canvasAreaX, Math.floor(canvasAreaX / scale) * scale);
+      const gridStartY = Math.max(canvasAreaY, Math.floor(canvasAreaY / scale) * scale);
+      const gridEndX = Math.min(canvasAreaX + canvasAreaWidth, Math.ceil((canvasAreaX + canvasAreaWidth) / scale) * scale);
+      const gridEndY = Math.min(canvasAreaY + canvasAreaHeight, Math.ceil((canvasAreaY + canvasAreaHeight) / scale) * scale);
       
-      for (let x = startX; x <= endX; x += scale) {
+      // Draw vertical grid lines
+      for (let x = gridStartX; x <= gridEndX; x += scale) {
         ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, canvas.height);
+        ctx.moveTo(x, canvasAreaY);
+        ctx.lineTo(x, canvasAreaY + canvasAreaHeight);
         ctx.stroke();
       }
-      for (let y = startY; y <= endY; y += scale) {
+      
+      // Draw horizontal grid lines
+      for (let y = gridStartY; y <= gridEndY; y += scale) {
         ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(canvas.width, y);
+        ctx.moveTo(canvasAreaX, y);
+        ctx.lineTo(canvasAreaX + canvasAreaWidth, y);
         ctx.stroke();
       }
     }
 
-    // Draw all pixels
+    // Calculate viewport bounds for culling
+    const viewportLeft = -offset.x / scale;
+    const viewportRight = (-offset.x + window.innerWidth) / scale;
+    const viewportTop = -offset.y / scale;
+    const viewportBottom = (-offset.y + window.innerHeight) / scale;
+
+    // Draw all user pixels - with viewport culling
     Object.entries(canvasState.pixels).forEach(([key, pixelData]) => {
       const { x, y } = parsePixelKey(key);
-      const screenX = x * scale + offset.x;
-      const screenY = y * scale + offset.y;
       
-      ctx.fillStyle = pixelData.color;
-      ctx.fillRect(screenX, screenY, scale, scale);
+      // Only render pixels that are in viewport
+      if (x >= viewportLeft && x <= viewportRight && y >= viewportTop && y <= viewportBottom) {
+        const screenX = x * scale + offset.x;
+        const screenY = y * scale + offset.y;
+        
+        ctx.fillStyle = pixelData.color;
+        ctx.fillRect(screenX, screenY, scale, scale);
+      }
     });
 
-    // Draw canvas border (1280x720 area)
+    // Draw canvas border
     const canvasBorderX = offset.x;
     const canvasBorderY = offset.y;
     const canvasBorderWidth = canvasConfig.width * scale;
@@ -476,8 +512,8 @@ export default function PixelPlaceCanvas({
   }, []);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
-    // Reduce zoom sensitivity - smaller increments
-    const zoomFactor = 0.2;
+    // Moderate zoom sensitivity for controlled zooming
+    const zoomFactor = 1.0;
     const zoom = e.deltaY > 0 ? -zoomFactor : zoomFactor;
     
     // Allow zooming out enough to see the entire canvas
@@ -525,25 +561,25 @@ export default function PixelPlaceCanvas({
           console.log('🎨 CANVAS: Skipping own pixel update');
           return; // Don't update own pixels
         }
-        
-        if (pixelUpdate.color === 'transparent') {
-          // Handle pixel removal
+      
+      if (pixelUpdate.color === 'transparent') {
+        // Handle pixel removal
           console.log('🎨 CANVAS: Removing pixel at', pixelUpdate.x, pixelUpdate.y);
-          setCanvasState(prev => {
-            const newPixels = { ...prev.pixels };
-            const key = pixelKey(pixelUpdate.x, pixelUpdate.y);
-            delete newPixels[key];
-            
-            return {
-              ...prev,
-              pixels: newPixels,
-              lastUpdated: Date.now(),
-              totalPixels: Object.keys(newPixels).length
-            };
-          });
-        } else {
+        setCanvasState(prev => {
+          const newPixels = { ...prev.pixels };
+          const key = pixelKey(pixelUpdate.x, pixelUpdate.y);
+          delete newPixels[key];
+          
+          return {
+            ...prev,
+            pixels: newPixels,
+            lastUpdated: Date.now(),
+            totalPixels: Object.keys(newPixels).length
+          };
+        });
+      } else {
           console.log('🎨 CANVAS: Adding pixel at', pixelUpdate.x, pixelUpdate.y, 'with color', pixelUpdate.color);
-          updatePixel(pixelUpdate.x, pixelUpdate.y, pixelUpdate.color, pixelUpdate.owner);
+        updatePixel(pixelUpdate.x, pixelUpdate.y, pixelUpdate.color, pixelUpdate.owner);
         }
       } else if (eventType === 'canvas-state-changed') {
         const state = data as CanvasState;
@@ -648,135 +684,208 @@ export default function PixelPlaceCanvas({
         }}
       />
 
-      {/* Left Side Controls */}
+      {/* Left Side Controls - Dark Theme */}
       <div className="fixed left-4 top-4 flex flex-col space-y-4">
+
         {/* Zoom Controls */}
-        <div className="flex flex-col space-y-2">
+        <div className="bg-gray-800/80 backdrop-blur-sm rounded-lg p-3 shadow-lg border border-gray-700">
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => {
+                const maxScale = Math.max(50, Math.min(window.innerWidth / canvasConfig.width, window.innerHeight / canvasConfig.height));
+                const newScale = Math.min(maxScale, scale + 2.5);
+                const newOffset = getCenteredOffset(newScale);
+                setScale(newScale);
+                setOffset(newOffset);
+              }}
+              className="w-8 h-8 bg-gray-700/80 hover:bg-gray-600/80 rounded border border-gray-600 flex items-center justify-center transition-all hover:scale-110"
+              title="Zoom In"
+            >
+              <span className="text-gray-300 font-bold text-sm">+</span>
+            </button>
+            <div className="bg-gray-700/80 rounded px-2 py-1 min-w-[40px] text-center">
+              <span className="text-gray-300 text-xs">{Math.round(scale)}px</span>
+            </div>
+            <button
+              onClick={() => {
+                const newScale = Math.max(0, scale - 2.5);
+                if (newScale === 0) {
+                  // Fit to screen when scale reaches 0
+                  const scaleX = window.innerWidth / canvasConfig.width;
+                  const scaleY = window.innerHeight / canvasConfig.height;
+                  const fitScale = Math.min(scaleX, scaleY) * 0.9;
+                  const newOffset = getCenteredOffset(fitScale);
+                  setScale(fitScale);
+                  setOffset(newOffset);
+                } else {
+                  const newOffset = getCenteredOffset(newScale);
+                  setScale(newScale);
+                  setOffset(newOffset);
+                }
+              }}
+              className="w-8 h-8 bg-gray-700/80 hover:bg-gray-600/80 rounded border border-gray-600 flex items-center justify-center transition-all hover:scale-110"
+              title="Zoom Out"
+            >
+              <span className="text-gray-300 font-bold text-sm">−</span>
+            </button>
+            <button
+              onClick={() => {
+                // Calculate scale to fit entire canvas on screen
+                const scaleX = window.innerWidth / canvasConfig.width;
+                const scaleY = window.innerHeight / canvasConfig.height;
+                const fitScale = Math.min(scaleX, scaleY) * 0.9; // 90% to leave some margin
+                const newOffset = getCenteredOffset(fitScale);
+                setScale(fitScale);
+                setOffset(newOffset);
+              }}
+              className="w-8 h-8 bg-gray-700/80 hover:bg-gray-600/80 rounded border border-gray-600 flex items-center justify-center transition-all hover:scale-110"
+              title="Fit to Screen"
+            >
+              <span className="text-gray-300 font-bold text-xs">⛶</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Color Palette */}
+        <div className="bg-gray-800/80 backdrop-blur-sm rounded-lg p-3 shadow-lg border border-gray-700">
+          <div className="grid grid-cols-2 gap-2 mb-2">
+            {COLOR_PALETTE.map((color, index) => (
+              <button
+                key={index}
+                className={`w-8 h-8 rounded border-2 transition-all hover:scale-110 ${
+                  selectedColor === color ? 'border-white scale-110 shadow-md' : 'border-gray-600 hover:border-gray-500'
+                }`}
+                style={{ backgroundColor: color }}
+                onClick={() => {
+                  setSelectedColor(color);
+                  setCurrentTool('draw');
+                }}
+                title={color}
+              />
+            ))}
+          </div>
+          
+          {/* Custom Color Picker */}
           <button
             onClick={() => {
-              const maxScale = Math.max(50, Math.min(window.innerWidth / canvasConfig.width, window.innerHeight / canvasConfig.height));
-              const newScale = Math.min(maxScale, scale + 0.5);
-              const newOffset = getCenteredOffset(newScale);
-              setScale(newScale);
-              setOffset(newOffset);
+              const hexColor = prompt('Enter hex color (e.g., #FF0000):', selectedColor);
+              if (hexColor && /^#[0-9A-F]{6}$/i.test(hexColor)) {
+                setSelectedColor(hexColor.toUpperCase());
+                setCurrentTool('draw');
+              } else if (hexColor) {
+                alert('Please enter a valid hex color (e.g., #FF0000)');
+              }
             }}
-            className="w-12 h-12 bg-white/90 backdrop-blur-sm rounded-full border-2 border-gray-300 hover:border-gray-500 shadow-lg flex items-center justify-center transition-all hover:scale-110"
-            title="Zoom In"
+            className="w-full h-8 bg-gray-700/80 hover:bg-gray-600/80 rounded border border-gray-600 flex items-center justify-center transition-all hover:scale-105"
+            title="Custom Color Picker"
           >
-            <span className="text-gray-700 font-bold text-lg">+</span>
-          </button>
-          <button
-            onClick={() => {
-              const maxScale = Math.max(50, Math.min(window.innerWidth / canvasConfig.width, window.innerHeight / canvasConfig.height));
-              const newScale = Math.max(0.1, scale - 0.5);
-              const newOffset = getCenteredOffset(newScale);
-              setScale(newScale);
-              setOffset(newOffset);
-            }}
-            className="w-12 h-12 bg-white/90 backdrop-blur-sm rounded-full border-2 border-gray-300 hover:border-gray-500 shadow-lg flex items-center justify-center transition-all hover:scale-110"
-            title="Zoom Out"
-          >
-            <span className="text-gray-700 font-bold text-lg">−</span>
+            <span className="text-gray-300 text-sm font-medium">🎨 Custom</span>
           </button>
         </div>
 
-        {/* Color Palette and Tools */}
-        <div className="bg-white/90 backdrop-blur-sm rounded-lg p-2 shadow-lg">
-          <div className="flex space-x-2">
-            {/* Color Palette */}
-            <div className="grid grid-cols-2 gap-1">
-              {COLOR_PALETTE.map((color, index) => (
-                <button
-                  key={index}
-                  className={`w-6 h-6 rounded-full border-2 transition-all hover:scale-110 ${
-                    selectedColor === color ? 'border-blue-400 scale-110 shadow-md' : 'border-gray-300 hover:border-gray-500'
-                  }`}
-                  style={{ backgroundColor: color }}
-                  onClick={() => {
-                    setSelectedColor(color);
-                    setCurrentTool('draw');
-                  }}
-                  title={color}
-                />
-              ))}
-            </div>
-            
-            {/* Tool Selection */}
-            <div className="flex flex-col space-y-1">
-              <button
-                className={`w-6 h-6 rounded-full border-2 transition-all hover:scale-110 flex items-center justify-center text-xs ${
-                  currentTool === 'draw' 
-                    ? 'bg-blue-500 text-white border-blue-600 shadow-md' 
-                    : 'bg-gray-200 text-gray-700 border-gray-300 hover:bg-gray-300'
-                }`}
-                onClick={() => setCurrentTool('draw')}
-                title="Draw Tool (Left Click)"
-              >
-                ✏️
-              </button>
-              <button
-                className={`w-6 h-6 rounded-full border-2 transition-all hover:scale-110 flex items-center justify-center text-xs ${
-                  currentTool === 'erase' 
-                    ? 'bg-red-500 text-white border-red-600 shadow-md' 
-                    : 'bg-gray-200 text-gray-700 border-gray-300 hover:bg-gray-300'
-                }`}
-                onClick={() => setCurrentTool('erase')}
-                title="Erase Tool (Right Click)"
-              >
-                🗑️
-              </button>
-            </div>
+        {/* Drawing Tools */}
+        <div className="bg-gray-800/80 backdrop-blur-sm rounded-lg p-3 shadow-lg border border-gray-700">
+          <div className="flex flex-col space-y-2">
+            <button
+              className={`w-8 h-8 rounded border flex items-center justify-center transition-all hover:scale-110 ${
+                currentTool === 'draw' 
+                  ? 'bg-blue-600/80 border-blue-500' 
+                  : 'bg-gray-700/80 border-gray-600 hover:bg-gray-600/80'
+              }`}
+              onClick={() => setCurrentTool('draw')}
+              title="Draw Tool (Left Click)"
+            >
+              <span className="text-gray-300 text-sm">✏️</span>
+            </button>
+            <button
+              className={`w-8 h-8 rounded border flex items-center justify-center transition-all hover:scale-110 ${
+                currentTool === 'erase' 
+                  ? 'bg-red-600/80 border-red-500' 
+                  : 'bg-gray-700/80 border-gray-600 hover:bg-gray-600/80'
+              }`}
+              onClick={() => setCurrentTool('erase')}
+              title="Erase Tool (Right Click)"
+            >
+              <span className="text-gray-300 text-sm">🗑️</span>
+            </button>
           </div>
         </div>
       </div>
 
       {/* Status Panel */}
-      <div className="fixed top-4 right-4 bg-white/90 backdrop-blur-sm rounded-lg p-4 shadow-lg min-w-[280px]">
-        <div className="text-sm font-medium text-gray-700 mb-2">
+      <div className="fixed top-4 right-4 bg-gray-800/90 backdrop-blur-sm rounded-lg p-4 shadow-lg min-w-[280px] border border-gray-700">
+        <div className="text-base font-medium text-gray-200 mb-2">
           🎨 Session: {sessionId.substring(0, 30)}...
         </div>
-        <button
-          onClick={() => {
-            navigator.clipboard.writeText(window.location.href);
-            // Show a small notification
-            const notification = document.createElement('div');
-            notification.className = 'fixed top-20 right-4 bg-green-500 text-white px-3 py-1 rounded text-sm z-50';
-            notification.textContent = 'URL copied!';
-            document.body.appendChild(notification);
-            setTimeout(() => notification.remove(), 2000);
-          }}
-          className="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600 transition-colors mb-2"
-        >
-          Copy URL
-        </button>
-        <div className="text-xs text-gray-500 mt-1">
+        
+        {/* Action Buttons */}
+        <div className="flex space-x-2 mb-3">
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(window.location.href);
+              // Show a small notification
+              const notification = document.createElement('div');
+              notification.className = 'fixed top-20 right-4 bg-green-500 text-white px-3 py-1 rounded text-sm z-50';
+              notification.textContent = 'URL copied!';
+              document.body.appendChild(notification);
+              setTimeout(() => notification.remove(), 2000);
+            }}
+            className="text-sm bg-blue-500 text-white px-3 py-2 rounded hover:bg-blue-600 transition-colors font-medium"
+          >
+            Copy URL
+          </button>
+          
+          {/* Menu and Disconnect buttons temporarily disabled
+          {onBackToMenu && (
+            <button
+              onClick={onBackToMenu}
+              className="text-xs bg-[#836EF9] text-white px-2 py-1 rounded hover:bg-[#7A5FF0] transition-colors"
+            >
+              ← Menu
+            </button>
+          )}
+          
+          {onDisconnect && (
+            <button
+              onClick={onDisconnect}
+              className="text-xs bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 transition-colors"
+            >
+              🔌 Disconnect
+            </button>
+          )}
+          */}
+        </div>
+        <div className="text-sm text-gray-300 mt-1">
           Pixels: {canvasState.totalPixels.toLocaleString()}
         </div>
-        <div className="text-xs text-gray-500">
+        <div className="text-sm text-gray-300">
           Zoom: {scale.toFixed(1)}x
         </div>
-        <div className="text-xs text-gray-500">
+        <div className="text-sm text-gray-300">
           Cooldown: {cooldownTimer > 0 
             ? `${(cooldownTimer / 1000).toFixed(1)}s`
             : 'Ready'
           }
         </div>
-        <div className="text-xs text-gray-500">
+        <div className="text-sm text-gray-300">
           Tool: {currentTool === 'draw' ? '✏️ Draw' : '🗑️ Erase'}
         </div>
-        <div className="text-xs text-gray-500 mt-1">
+        <div className="text-sm text-gray-300 mt-1">
           Multisynq: {multisynqConnected ? '🟢 Connected' : '🔴 Disconnected'}
         </div>
         
         {/* Reset View Button */}
         <button
           onClick={() => {
-            const newScale = 10;
-            const newOffset = getCenteredOffset(newScale);
-            setScale(newScale);
+            // Calculate scale to fit entire canvas on screen
+            const scaleX = window.innerWidth / canvasConfig.width;
+            const scaleY = window.innerHeight / canvasConfig.height;
+            const fitScale = Math.min(scaleX, scaleY) * 0.9; // 90% to leave some margin
+            const newOffset = getCenteredOffset(fitScale);
+            setScale(fitScale);
             setOffset(newOffset);
           }}
-          className="mt-2 w-full bg-gray-200 hover:bg-gray-300 rounded text-xs font-bold transition-colors py-1"
+          className="mt-2 w-full bg-gray-700 hover:bg-gray-600 rounded text-sm font-bold transition-colors py-2 text-gray-200"
           title="Reset View"
         >
           Reset View
@@ -785,14 +894,14 @@ export default function PixelPlaceCanvas({
 
       {/* Position Info - Next to Color Palette */}
       {hoverPixel && (
-        <div className="fixed left-4 bottom-4 bg-white/90 backdrop-blur-sm rounded-lg p-3 shadow-lg">
-          <div className="text-xs text-gray-600">
+        <div className="fixed left-4 bottom-4 bg-gray-800/90 backdrop-blur-sm rounded-lg p-3 shadow-lg border border-gray-700">
+          <div className="text-sm text-gray-200">
             <div className="font-medium mb-1">Position</div>
             <div>({hoverPixel[0]}, {hoverPixel[1]})</div>
             <div className="mt-2 font-medium">Color</div>
             <div className="flex items-center space-x-2">
               <div 
-                className="w-4 h-4 rounded-full border border-gray-300"
+                className="w-5 h-5 rounded-full border border-gray-500"
                 style={{ backgroundColor: selectedColor }}
               />
               <span>{selectedColor}</span>
@@ -802,12 +911,12 @@ export default function PixelPlaceCanvas({
       )}
 
       {/* Mini-map */}
-      <div className="fixed bottom-4 right-4 bg-white/90 backdrop-blur-sm rounded-lg p-2 shadow-lg">
-        <div className="text-xs text-gray-700 mb-1 text-center">Map</div>
+      <div className="fixed bottom-4 right-4 bg-gray-800/90 backdrop-blur-sm rounded-lg p-2 shadow-lg border border-gray-700">
+        <div className="text-sm text-gray-200 mb-1 text-center font-medium">Map</div>
         <canvas
           ref={minimapRef}
           onClick={handleMinimapClick}
-          className="block border border-gray-300 rounded cursor-pointer"
+          className="block border border-gray-600 rounded cursor-pointer"
           style={{
             width: '150px',
             height: '150px'
@@ -818,9 +927,9 @@ export default function PixelPlaceCanvas({
       {/* Cooldown Warning */}
       {cooldownTimer > 0 && (
         <div className="fixed inset-0 bg-red-500/10 flex items-center justify-center pointer-events-none">
-          <div className="bg-red-500 text-white px-4 py-2 rounded-lg">
-            Cooldown: {(cooldownTimer / 1000).toFixed(1)}s
-          </div>
+                  <div className="bg-red-500 text-white px-6 py-3 rounded-lg text-lg font-bold">
+          Cooldown: {(cooldownTimer / 1000).toFixed(1)}s
+        </div>
         </div>
       )}
     </div>

@@ -104,7 +104,7 @@ export default function WalletSelector({ isOpen, onClose, onSelectWallet }: Wall
               href="https://metamask.io/download/"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-600 hover:text-blue-800"
+                                className="text-[#200052] hover:text-[#300063] font-bold"
             >
               Download MetaMask
             </a>

@@ -1,5 +1,12 @@
 import type { Metadata } from "next";
+import { Sora } from "next/font/google";
 import "./globals.css";
+
+const sora = Sora({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-sora",
+});
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -13,7 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased">
+      <body className={`antialiased ${sora.variable} font-sans`}>
         {children}
       </body>
     </html>

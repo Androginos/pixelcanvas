@@ -73,12 +73,18 @@ export const DEFAULT_CANVAS_CONFIG: CanvasConfig = {
   maxPixelsPerUser: 1000
 };
 
-// Color Palette (Popular colors)
+// Color Palette (10 Essential Colors)
 export const COLOR_PALETTE = [
-  '#FFFFFF', '#E4E4E4', '#C8C8C8', '#ADADAD', '#919191', '#757575', '#595959', '#3D3D3D', '#212121', '#000000',
-  '#FF0000', '#FF4500', '#FF8C00', '#FFA500', '#FFD700', '#FFFF00', '#ADFF2F', '#7FFF00', '#32CD32', '#00FF00',
-  '#00FA9A', '#00FFFF', '#00BFFF', '#0080FF', '#0000FF', '#4B0082', '#8A2BE2', '#9370DB', '#DDA0DD', '#FF69B4',
-  '#FF1493', '#DC143C', '#B22222', '#8B0000', '#800000', '#8B4513', '#A0522D', '#CD853F', '#DEB887', '#F5DEB3'
+  '#000000', // Black
+  '#FFFFFF', // White
+  '#FF0000', // Red
+  '#00FF00', // Green
+  '#0000FF', // Blue
+  '#FFFF00', // Yellow
+  '#FF00FF', // Magenta
+  '#00FFFF', // Cyan
+  '#FFA500', // Orange
+  '#800080'  // Purple
 ];
 
 // Utility Functions

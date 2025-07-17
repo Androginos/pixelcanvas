@@ -4,6 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import PixelPlaceCanvas from '@/components/PixelPlaceCanvas';
 import WalletConnection from '@/components/WalletConnection';
+import CanvasSelector, { CanvasTemplate } from '@/components/CanvasSelector';
 import { useMultisynqSession } from '@/hooks/useMultisynqSession';
 import { generateUserId, generateSessionId } from '@/lib/multisynq';
 
@@ -21,6 +22,16 @@ function HomeContent() {
   });
   const [userName, setUserName] = useState('');
   const [isClient, setIsClient] = useState(false);
+  const [showCanvasSelector, setShowCanvasSelector] = useState(false);
+  const [renderKey, setRenderKey] = useState(0);
+  const [selectedCanvas, setSelectedCanvas] = useState<CanvasTemplate>({
+    id: 'square-1000',
+    name: 'Square Canvas',
+    width: 1000,
+    height: 1000,
+    description: '1000x1000 pixel square canvas - Perfect for pixel art',
+    type: 'size'
+  });
 
   // Get Multisynq session info
   const { sessionInfo } = useMultisynqSession({
@@ -42,6 +53,11 @@ function HomeContent() {
     }
   }, [walletAddress]);
 
+  // Debug state changes
+  useEffect(() => {
+    console.log('🔄 State changed - isConnected:', isConnected, 'walletAddress:', walletAddress);
+  }, [isConnected, walletAddress]);
+
   const handleWalletConnect = (address: string) => {
     setWalletAddress(address);
     setIsConnected(true);
@@ -53,8 +69,63 @@ function HomeContent() {
     setUserName('');
   };
 
+  const handleCanvasSelect = (template: CanvasTemplate) => {
+    setSelectedCanvas(template);
+    setShowCanvasSelector(false);
+  };
+
+  const handleBackToMenu = () => {
+    console.log('🔄 Going back to menu...');
+    
+    // Force immediate state reset with multiple approaches
+    setIsConnected(false);
+    setWalletAddress(null);
+    setUserName('');
+    setRenderKey(prev => prev + 1);
+    
+    // Force multiple render cycles to ensure state is properly reset
+    setTimeout(() => {
+      setIsConnected(false);
+      setWalletAddress(null);
+      setRenderKey(prev => prev + 1);
+    }, 10);
+    
+    setTimeout(() => {
+      setIsConnected(false);
+      setWalletAddress(null);
+      setRenderKey(prev => prev + 1);
+    }, 50);
+    
+    console.log('Menu button clicked - state reset initiated');
+  };
+
+  const handleDisconnect = () => {
+    console.log('🔌 Disconnecting wallet...');
+    
+    // Force immediate state reset with multiple approaches
+    setIsConnected(false);
+    setWalletAddress(null);
+    setUserName('');
+    setRenderKey(prev => prev + 1);
+    
+    // Force multiple render cycles to ensure state is properly reset
+    setTimeout(() => {
+      setIsConnected(false);
+      setWalletAddress(null);
+      setRenderKey(prev => prev + 1);
+    }, 10);
+    
+    setTimeout(() => {
+      setIsConnected(false);
+      setWalletAddress(null);
+      setRenderKey(prev => prev + 1);
+    }, 50);
+    
+    console.log('Disconnect button clicked - state reset initiated');
+  };
+
   return (
-    <main className="w-full h-screen overflow-hidden">
+    <main key={`main-${renderKey}-${isConnected}-${walletAddress}`} className="w-full h-screen overflow-hidden">
       {!isClient ? (
         <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
           <div className="text-center">
@@ -64,30 +135,60 @@ function HomeContent() {
             </h2>
           </div>
         </div>
-      ) : isConnected && walletAddress && userId && sessionId ? (
+      ) : isConnected && walletAddress && walletAddress !== null ? (
         <div className="w-full h-full relative">
           <PixelPlaceCanvas
+            key={`canvas-${renderKey}-${walletAddress}`}
             sessionId={sessionId}
             userId={userId}
             walletAddress={walletAddress}
             config={{
-              width: 1000,
-              height: 1000,
+              width: selectedCanvas.width,
+              height: selectedCanvas.height,
               cooldownMs: 300, // 0.3 second cooldown
               maxPixelsPerUser: 1000
             }}
+
+            onBackToMenu={handleBackToMenu}
+            onDisconnect={handleDisconnect}
           />
         </div>
       ) : (
         /* Waiting for Connection */
-        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-          <div className="bg-white rounded-lg shadow-lg p-8 max-w-2xl">
+        <div className="w-full h-full flex items-center justify-center bg-[#171717] p-4">
+          <div className="bg-[#FBFAF9] rounded-lg shadow-lg p-8 w-[900px] max-h-[90vh] overflow-y-auto">
             <div className="text-center mb-8">
-              <h1 className="text-4xl font-bold text-gray-900 mb-2">
-                PixelPlace.io Clone
+              <h1 className="text-5xl font-bold text-[#0E100F] mb-3">
+                Monad Place Pixel Canvas
               </h1>
-              <p className="text-lg text-gray-600">
-                1000x1000 Collaborative Pixel Canvas - Powered by Multisynq & Monad
+              <p className="text-xl text-[#0E100F]">
+                Collaborative Pixel Canvas - Build by{' '}
+                <a 
+                  href="https://x.com/gurhankutsal" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-[#200052] hover:text-[#300063] font-bold underline"
+                >
+                  Kutsal
+                </a>
+                {' '}•{' '}
+                <a 
+                  href="https://multisynq.io" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-[#200052] hover:text-[#300063] font-bold"
+                >
+                  Powered by Multisynq
+                </a>
+                {' '}•{' '}
+                <a 
+                  href="https://monad.xyz" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-[#200052] hover:text-[#300063] font-bold"
+                >
+                  Built on Monad
+                </a>
               </p>
             </div>
 
@@ -100,39 +201,55 @@ function HomeContent() {
             </div>
 
             <div className="text-center">
-              <div className="text-6xl mb-4">🎨</div>
-              <h2 className="text-2xl font-semibold text-gray-800 mb-4">
-                Ready to Start Pixel Art?
+              <h2 className="text-3xl font-semibold text-[#0E100F] mb-4">
+                Ready to Start Pixel Art with Nads?
               </h2>
-              <p className="text-gray-600 mb-6">
+              <p className="text-lg text-[#0E100F] mb-6">
                 Connect your wallet (MetaMask or Phantom) to Monad Testnet and join the collaborative pixel canvas.
               </p>
+
+              {/* Canvas Selection */}
+              <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h3 className="text-lg font-semibold text-[#0E100F]">Selected Canvas:</h3>
+                    <p className="text-base text-[#0E100F]">{selectedCanvas.name} ({selectedCanvas.width}×{selectedCanvas.height})</p>
+                  </div>
+                  <button
+                    onClick={() => setShowCanvasSelector(true)}
+                    className="bg-[#836EF9] hover:bg-[#7A5FF0] text-white px-5 py-3 rounded-lg font-medium transition-colors text-base"
+                  >
+                    Choose Template
+                  </button>
+                </div>
+                <p className="text-sm text-[#0E100F]">{selectedCanvas.description}</p>
+              </div>
               
               {/* Session Info */}
               <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm font-medium text-blue-700 mb-2">🎨 Session Information:</p>
+                <p className="text-base font-medium text-blue-700 mb-2">🎨 Session Information:</p>
                 <div className="bg-white p-3 rounded border border-blue-300 space-y-2">
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">URL Session ID:</p>
-                    <p className="font-mono text-sm font-bold text-blue-900 break-all select-all">
+                    <p className="text-sm text-gray-500 mb-1">URL Session ID:</p>
+                    <p className="font-mono text-base font-bold text-blue-900 break-all select-all">
                       {sessionId === 'auto-session' ? 'Auto-generated' : sessionId}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Real Multisynq Session ID:</p>
-                    <p className="font-mono text-sm font-bold text-green-900 break-all select-all">
+                    <p className="text-sm text-gray-500 mb-1">Real Multisynq Session ID:</p>
+                    <p className="font-mono text-base font-bold text-green-900 break-all select-all">
                       {sessionInfo?.sessionId || 'Connecting...'}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Connection Status:</p>
-                    <p className={`text-sm font-bold ${sessionInfo?.isConnected ? 'text-green-600' : 'text-red-600'}`}>
+                    <p className="text-sm text-gray-500 mb-1">Connection Status:</p>
+                    <p className={`text-base font-bold ${sessionInfo?.isConnected ? 'text-green-600' : 'text-red-600'}`}>
                       {sessionInfo?.isConnected ? '🟢 Connected' : '🔴 Disconnected'}
                     </p>
                   </div>
                 </div>
                 <div className="mt-3 flex items-center justify-between">
-                  <p className="text-xs text-blue-600">
+                  <p className="text-sm text-[#200052] font-bold">
                     📋 Share this URL to invite others
                   </p>
                   <button
@@ -140,16 +257,16 @@ function HomeContent() {
                       navigator.clipboard.writeText(window.location.href);
                       alert('URL copied to clipboard!');
                     }}
-                    className="text-xs bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition-colors"
+                    className="text-sm bg-[#836EF9] text-white px-4 py-2 rounded hover:bg-[#7A5FF0] transition-colors"
                   >
                     Copy URL
                   </button>
                 </div>
               </div>
-              <div className="space-y-2 text-sm text-gray-500">
-                <div>• 1000x1000 pixel canvas</div>
+              <div className="space-y-2 text-base text-[#0E100F]">
+                <div>• Selectable canvas sizes (1000x1000, 800x600, 1200x800, etc.)</div>
                 <div>• Real-time collaboration</div>
-                <div>• 40-color palette</div>
+                <div>• 10-color palette + custom hex colors</div>
                 <div>• Pan & zoom support</div>
                 <div>• Cooldown system</div>
                 <div>• Powered by Multisynq + Monad</div>
@@ -157,42 +274,21 @@ function HomeContent() {
             </div>
 
             {/* Footer */}
-            <footer className="mt-8 text-center text-gray-500 text-sm">
-              <div className="mb-4">
-                <a 
-                  href="https://multisynq.io" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-800 font-medium"
-                >
-                  Powered by Multisynq
-                </a>
-                {' • '}
-                <a 
-                  href="https://monad.xyz" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-800 font-medium"
-                >
-                  Built on Monad
-                </a>
-                {' • '}
-                <a 
-                  href="https://pixelplace.io" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-800 font-medium"
-                >
-                  Inspired by PixelPlace.io
-                </a>
-              </div>
+            <footer className="mt-8 text-center text-[#0E100F] text-base">
               <div>
-                Collaborative pixel canvas demo • Chain ID: 10143 (Monad Testnet) • 1000x1000 pixels
+                Collaborative pixel canvas demo • Chain ID: 10143 (Monad Testnet)
               </div>
             </footer>
           </div>
         </div>
       )}
+
+      {/* Canvas Selector Modal */}
+      <CanvasSelector
+        isOpen={showCanvasSelector}
+        onClose={() => setShowCanvasSelector(false)}
+        onSelectTemplate={handleCanvasSelect}
+      />
     </main>
   );
 }

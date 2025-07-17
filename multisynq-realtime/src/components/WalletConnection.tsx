@@ -294,13 +294,13 @@ export default function WalletConnection({ onConnect, onDisconnect }: WalletConn
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border p-4">
+    <div className="bg-[#FBFAF9] rounded-lg shadow-sm border p-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">
+          <h3 className="text-lg font-semibold text-[#0E100F]">
             Wallet Connection
           </h3>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="text-sm text-[#0E100F] mt-1">
             Connect to Monad Testnet to join the session
           </p>
         </div>
@@ -318,26 +318,26 @@ export default function WalletConnection({ onConnect, onDisconnect }: WalletConn
                 href="https://metamask.io/download/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                className="bg-[#836EF9] hover:bg-[#7A5FF0] text-white px-4 py-2 rounded-lg font-medium transition-colors"
               >
                 Install MetaMask
               </a>
-              <p className="text-xs text-gray-500 mt-1">Required for wallet connection</p>
+              <p className="text-xs text-[#0E100F] mt-1">Required for wallet connection</p>
             </div>
           ) : walletState.isConnected ? (
             <div className="text-right">
               <div className="flex items-center space-x-2 mb-2">
                 <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                <span className="text-sm font-medium text-gray-700">
+                <span className="text-sm font-medium text-[#0E100F]">
                   {formatAddress(walletState.address!)}
                 </span>
               </div>
-              <div className="text-xs text-gray-500 mb-2">
+              <div className="text-xs text-[#0E100F] mb-2">
                 Chain: {walletState.chainId === MONAD_TESTNET.id ? MONAD_TESTNET.name : `Unknown (${walletState.chainId})`}
               </div>
               <button
                 onClick={disconnectWallet}
-                className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm transition-colors"
+                className="bg-[#836EF9] hover:bg-[#7A5FF0] text-white px-3 py-1 rounded text-sm transition-colors"
               >
                 Disconnect
               </button>
@@ -347,7 +347,7 @@ export default function WalletConnection({ onConnect, onDisconnect }: WalletConn
               <button
                 onClick={() => connectWallet()}
                 disabled={walletState.isConnecting}
-                className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
+                className="bg-[#836EF9] hover:bg-[#7A5FF0] disabled:bg-[#A89CFA] text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
               >
                 {walletState.isConnecting ? (
                   <>
@@ -360,7 +360,7 @@ export default function WalletConnection({ onConnect, onDisconnect }: WalletConn
               </button>
               
               {connectionStep && (
-                <div className="mt-2 text-xs text-blue-600 font-medium">
+                <div className="mt-2 text-xs text-[#836EF9] font-medium">
                   {connectionStep}
                 </div>
               )}
@@ -384,7 +384,7 @@ export default function WalletConnection({ onConnect, onDisconnect }: WalletConn
           </p>
           <button
             onClick={() => connectWallet()}
-            className="mt-2 bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded text-sm transition-colors"
+            className="mt-2 bg-[#836EF9] hover:bg-[#7A5FF0] text-white px-3 py-1 rounded text-sm transition-colors"
           >
             Switch Network
           </button>
