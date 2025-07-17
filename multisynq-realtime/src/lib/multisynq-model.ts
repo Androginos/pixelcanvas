@@ -30,7 +30,7 @@ export class CanvasModel extends Model {
   }
 
   // Handle pixel update from any view
-  handlePixelUpdate(pixelUpdate: PixelUpdate) {
+  handlePixelUpdate(pixelUpdate: any) {
     console.log('🎯 MODEL: Received pixel update event:', pixelUpdate);
     console.log('🎯 MODEL: Current pixels count:', Object.keys(this.pixels).length);
     
@@ -53,7 +53,7 @@ export class CanvasModel extends Model {
     this.lastUpdated = this.now(); // Use synchronized time
     this.totalPixels = Object.keys(this.pixels).length;
     
-    // Publish the update to all views using view scope
+    // Publish the update to all views using view scope (preserve sourceViewId)
     console.log('🎯 MODEL: Publishing pixel-updated to view scope');
     console.log('🎯 MODEL: Publishing event with data:', pixelUpdate);
     this.publish('view', 'pixel-updated', pixelUpdate);

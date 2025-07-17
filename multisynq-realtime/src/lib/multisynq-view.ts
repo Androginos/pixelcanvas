@@ -44,11 +44,18 @@ export class CanvasView extends View {
   }
 
   // Handle pixel updates from model
-  handlePixelUpdated(pixelUpdate: PixelUpdate) {
+  handlePixelUpdated(pixelUpdate: any) {
+    // Check if this event came from this view (prevent self-reception)
+    if (pixelUpdate.sourceViewId === this.viewId) {
+      console.log('🎨 VIEW: Ignoring own pixel update event');
+      return;
+    }
+    
     console.log('🎨 VIEW: Received pixel-updated event from model:', pixelUpdate);
     console.log('🎨 VIEW: Publishing to UI components...');
-    // Publish to UI components
-    this.publish('ui', 'ui-pixel-update', pixelUpdate);
+    // Publish to UI components (remove sourceViewId)
+    const { sourceViewId, ...cleanPixelUpdate } = pixelUpdate;
+    this.publish('ui', 'ui-pixel-update', cleanPixelUpdate);
     console.log('🎨 VIEW: UI event published successfully');
   }
 
@@ -68,8 +75,13 @@ export class CanvasView extends View {
   sendPixelUpdate(pixelUpdate: PixelUpdate) {
     console.log('🎨 VIEW: Sending pixel update to model:', pixelUpdate);
     console.log('🎨 VIEW: Using model scope for publish...');
+    // Add view ID to prevent self-reception
+    const eventData = {
+      ...pixelUpdate,
+      sourceViewId: this.viewId
+    };
     // Send to model using model scope
-    this.publish('model', 'pixel-update', pixelUpdate);
+    this.publish('model', 'pixel-update', eventData);
     console.log('🎨 VIEW: Pixel update published to model successfully');
   }
 
