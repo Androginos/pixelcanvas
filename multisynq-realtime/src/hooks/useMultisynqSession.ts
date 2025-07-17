@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getMultisynqClient, EVENTS } from '@/lib/multisynq-client';
 import { PixelUpdate } from '@/types/pixelplace';
 
@@ -19,6 +19,7 @@ interface UseMultisynqSessionReturn {
   sendPixelUpdateToModel: (pixelUpdate: PixelUpdate) => Promise<void>;
   getSessionInfo: () => { sessionId: string; isConnected: boolean };
   sessionInfo: { sessionId: string; isConnected: boolean };
+  reconnect: () => Promise<void>;
 }
 
 export function useMultisynqSession({
@@ -29,6 +30,12 @@ export function useMultisynqSession({
   const [isConnected, setIsConnected] = useState(false);
   const [sessionInfo, setSessionInfo] = useState({ sessionId: '', isConnected: false });
   const [client] = useState(() => getMultisynqClient());
+  
+  // Reconnection state
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectAttemptsRef = useRef(0);
+  const maxReconnectAttempts = 5;
+  const reconnectDelay = 2000; // 2 seconds
 
   // Connect to session
   const connectToSession = useCallback(async () => {
@@ -38,6 +45,7 @@ export function useMultisynqSession({
       // Multisynq handles session ID automatically via App.autoSession()
       await client.connect();
       setIsConnected(true);
+      reconnectAttemptsRef.current = 0; // Reset reconnect attempts on successful connection
       
       // Update session info
       const info = client.getSessionInfo();
@@ -53,11 +61,53 @@ export function useMultisynqSession({
       console.error('❌ Failed to connect to session:', error);
       setIsConnected(false);
       setSessionInfo({ sessionId: '', isConnected: false });
+      
+      // Attempt to reconnect if we haven't exceeded max attempts
+      if (reconnectAttemptsRef.current < maxReconnectAttempts) {
+        console.log(`🔄 Attempting to reconnect (${reconnectAttemptsRef.current + 1}/${maxReconnectAttempts})...`);
+        reconnectAttemptsRef.current++;
+        
+        reconnectTimeoutRef.current = setTimeout(() => {
+          connectToSession();
+        }, reconnectDelay * reconnectAttemptsRef.current); // Exponential backoff
+      } else {
+        console.error('❌ Max reconnection attempts reached');
+      }
     }
   }, [client, sessionId, userId, walletAddress]);
 
+  // Manual reconnect function
+  const reconnect = useCallback(async () => {
+    console.log('🔄 Manual reconnect requested');
+    
+    // Clear any existing reconnect timeout
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+    
+    // Reset reconnect attempts
+    reconnectAttemptsRef.current = 0;
+    
+    // Disconnect first
+    try {
+      await client.disconnect();
+    } catch (error) {
+      console.warn('Warning during disconnect:', error);
+    }
+    
+    // Then reconnect
+    await connectToSession();
+  }, [client, connectToSession]);
+
   // Disconnect from session
   const disconnectFromSession = useCallback(async () => {
+    // Clear any pending reconnect attempts
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+    
     try {
       await client.disconnect();
       setIsConnected(false);
@@ -67,18 +117,32 @@ export function useMultisynqSession({
     }
   }, [client]);
 
-  // Publish pixel update
+  // Publish pixel update with retry mechanism
   const publishPixelUpdate = useCallback(async (pixelUpdate: PixelUpdate) => {
     if (!isConnected) {
       console.warn('Not connected to session, cannot publish pixel update');
       return;
     }
 
-    try {
-      await client.publishPixelUpdate(pixelUpdate);
-    } catch (error) {
-      console.error('Failed to publish pixel update:', error);
+    const maxRetries = 3;
+    let retryCount = 0;
+
+    while (retryCount < maxRetries) {
+      try {
+        await client.publishPixelUpdate(pixelUpdate);
+        return; // Success, exit retry loop
+      } catch (error) {
+        retryCount++;
+        console.error(`Failed to publish pixel update (attempt ${retryCount}/${maxRetries}):`, error);
+        
+        if (retryCount < maxRetries) {
+          // Wait before retry with exponential backoff
+          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+        }
+      }
     }
+    
+    console.error('Failed to publish pixel update after all retries');
   }, [client, isConnected]);
 
   // Subscribe to pixel updates
@@ -104,9 +168,27 @@ export function useMultisynqSession({
     client.subscribeToViewEvents(callback);
   }, [client]);
 
-  // Send pixel update to Multisynq model
+  // Send pixel update to Multisynq model with retry
   const sendPixelUpdateToModel = useCallback(async (pixelUpdate: PixelUpdate) => {
-    await client.sendPixelUpdateToModel(pixelUpdate);
+    const maxRetries = 3;
+    let retryCount = 0;
+
+    while (retryCount < maxRetries) {
+      try {
+        await client.sendPixelUpdateToModel(pixelUpdate);
+        return; // Success, exit retry loop
+      } catch (error) {
+        retryCount++;
+        console.error(`Failed to send pixel update to model (attempt ${retryCount}/${maxRetries}):`, error);
+        
+        if (retryCount < maxRetries) {
+          // Wait before retry with exponential backoff
+          await new Promise(resolve => setTimeout(resolve, 500 * retryCount));
+        }
+      }
+    }
+    
+    console.error('Failed to send pixel update to model after all retries');
   }, [client]);
 
   // Get session info
@@ -115,12 +197,37 @@ export function useMultisynqSession({
     isConnected: client.getConnectionStatus()
   }), [client]);
 
+  // Monitor connection status
+  useEffect(() => {
+    const checkConnection = () => {
+      const currentStatus = client.getConnectionStatus();
+      if (isConnected && !currentStatus) {
+        console.warn('🔄 Connection lost, attempting to reconnect...');
+        setIsConnected(false);
+        reconnect();
+      } else if (!isConnected && currentStatus) {
+        console.log('✅ Connection restored');
+        setIsConnected(true);
+      }
+    };
+
+    // Check connection every 5 seconds
+    const interval = setInterval(checkConnection, 5000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [isConnected, client, reconnect]);
+
   // Connect on mount
   useEffect(() => {
     connectToSession();
 
     // Cleanup on unmount
     return () => {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
       disconnectFromSession();
     };
   }, [connectToSession, disconnectFromSession]);
@@ -133,6 +240,7 @@ export function useMultisynqSession({
     subscribeToViewEvents,
     sendPixelUpdateToModel,
     getSessionInfo,
-    sessionInfo
+    sessionInfo,
+    reconnect
   };
 } 

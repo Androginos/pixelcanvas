@@ -33,6 +33,8 @@ export interface UserCooldown {
   userId: string;
   lastPixelTime: number;
   cooldownDuration: number; // milliseconds
+  pixelCount: number; // Number of pixels placed in current session
+  cooldownStartTime?: number; // When cooldown started
 }
 
 export interface CanvasConfig {
@@ -44,6 +46,8 @@ export interface CanvasConfig {
   defaultZoom: number;
   cooldownMs: number;
   maxPixelsPerUser: number;
+  maxPixelsPerCooldown: number; // Maximum pixels before cooldown
+  cooldownDurationMs: number; // Cooldown duration in milliseconds
 }
 
 export interface CanvasViewport {
@@ -70,7 +74,9 @@ export const DEFAULT_CANVAS_CONFIG: CanvasConfig = {
   minZoom: 0.1,
   defaultZoom: 1,
   cooldownMs: 1000, // 1 second
-  maxPixelsPerUser: 1000
+  maxPixelsPerUser: 1000,
+  maxPixelsPerCooldown: 100, // 100 pixels before cooldown
+  cooldownDurationMs: 15000 // 15 seconds cooldown
 };
 
 // Color Palette (10 Essential Colors)
@@ -114,4 +120,80 @@ export const getRemainingCooldown = (userId: string, cooldowns: Map<string, User
   const timeSinceLastPixel = Date.now() - cooldown.lastPixelTime;
   const remaining = config.cooldownMs - timeSinceLastPixel;
   return Math.max(0, remaining);
+};
+
+// Spam protection utility functions
+export const isUserOnSpamCooldown = (userId: string, cooldowns: Map<string, UserCooldown>, config: CanvasConfig): boolean => {
+  const cooldown = cooldowns.get(userId);
+  if (!cooldown || !cooldown.cooldownStartTime) return false;
+  
+  const timeSinceCooldownStart = Date.now() - cooldown.cooldownStartTime;
+  return timeSinceCooldownStart < config.cooldownDurationMs;
+};
+
+export const getRemainingSpamCooldown = (userId: string, cooldowns: Map<string, UserCooldown>, config: CanvasConfig): number => {
+  const cooldown = cooldowns.get(userId);
+  if (!cooldown || !cooldown.cooldownStartTime) return 0;
+  
+  const timeSinceCooldownStart = Date.now() - cooldown.cooldownStartTime;
+  const remaining = config.cooldownDurationMs - timeSinceCooldownStart;
+  return Math.max(0, remaining);
+};
+
+export const shouldStartSpamCooldown = (userId: string, cooldowns: Map<string, UserCooldown>, config: CanvasConfig): boolean => {
+  const cooldown = cooldowns.get(userId);
+  if (!cooldown) return false;
+  
+  return cooldown.pixelCount >= config.maxPixelsPerCooldown;
+};
+
+export const incrementPixelCount = (userId: string, cooldowns: Map<string, UserCooldown>): Map<string, UserCooldown> => {
+  const newCooldowns = new Map(cooldowns);
+  const existing = newCooldowns.get(userId);
+  
+  if (existing) {
+    newCooldowns.set(userId, {
+      ...existing,
+      pixelCount: existing.pixelCount + 1,
+      lastPixelTime: Date.now()
+    });
+  } else {
+    newCooldowns.set(userId, {
+      userId,
+      lastPixelTime: Date.now(),
+      cooldownDuration: 0,
+      pixelCount: 1
+    });
+  }
+  
+  return newCooldowns;
+};
+
+export const startSpamCooldown = (userId: string, cooldowns: Map<string, UserCooldown>): Map<string, UserCooldown> => {
+  const newCooldowns = new Map(cooldowns);
+  const existing = newCooldowns.get(userId);
+  
+  if (existing) {
+    newCooldowns.set(userId, {
+      ...existing,
+      cooldownStartTime: Date.now()
+    });
+  }
+  
+  return newCooldowns;
+};
+
+export const resetPixelCount = (userId: string, cooldowns: Map<string, UserCooldown>): Map<string, UserCooldown> => {
+  const newCooldowns = new Map(cooldowns);
+  const existing = newCooldowns.get(userId);
+  
+  if (existing) {
+    newCooldowns.set(userId, {
+      ...existing,
+      pixelCount: 0,
+      cooldownStartTime: undefined
+    });
+  }
+  
+  return newCooldowns;
 }; 

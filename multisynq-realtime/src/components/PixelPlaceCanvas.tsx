@@ -10,8 +10,12 @@ import {
   COLOR_PALETTE,
   pixelKey,
   isValidPixel,
-  isUserOnCooldown,
-  getRemainingCooldown
+  isUserOnSpamCooldown,
+  getRemainingSpamCooldown,
+  shouldStartSpamCooldown,
+  incrementPixelCount,
+  startSpamCooldown,
+  resetPixelCount
 } from '@/types/pixelplace';
 import { useMultisynqSession } from '@/hooks/useMultisynqSession';
 
@@ -72,10 +76,14 @@ export default function PixelPlaceCanvas({
     };
   }); // pan
   const [dragging, setDragging] = useState(false);
-  const [cooldownTimer, setCooldownTimer] = useState(0);
+  const [spamCooldownTimer, setSpamCooldownTimer] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
   const [currentTool, setCurrentTool] = useState<Tool>('draw');
   const [hasMoved, setHasMoved] = useState(false);
+  
+  // Pixel update queue for offline scenarios
+  const [pendingPixelUpdates, setPendingPixelUpdates] = useState<PixelUpdate[]>([]);
+  const [isProcessingQueue, setIsProcessingQueue] = useState(false);
 
   // Multisynq session hook
   const {
@@ -85,7 +93,8 @@ export default function PixelPlaceCanvas({
     unsubscribeFromPixelUpdates,
     subscribeToViewEvents,
     sendPixelUpdateToModel,
-    sessionInfo
+    sessionInfo,
+    reconnect
   } = useMultisynqSession({
     sessionId,
     userId,
@@ -95,6 +104,32 @@ export default function PixelPlaceCanvas({
   const dragStart = useRef<{ x: number, y: number } | null>(null);
   const lastMousePos = useRef<{ x: number, y: number } | null>(null);
 
+  // Process pending pixel updates when connection is restored
+  useEffect(() => {
+    if (multisynqConnected && pendingPixelUpdates.length > 0 && !isProcessingQueue) {
+      setIsProcessingQueue(true);
+      
+      const processQueue = async () => {
+        console.log(`🔄 Processing ${pendingPixelUpdates.length} pending pixel updates...`);
+        
+        for (const pixelUpdate of pendingPixelUpdates) {
+          try {
+            await sendPixelUpdateToModel(pixelUpdate);
+            // Small delay between updates to avoid overwhelming the server
+            await new Promise(resolve => setTimeout(resolve, 100));
+          } catch (error) {
+            console.error('Failed to process queued pixel update:', error);
+          }
+        }
+        
+        setPendingPixelUpdates([]);
+        setIsProcessingQueue(false);
+        console.log('✅ Pending pixel updates processed');
+      };
+      
+      processQueue();
+    }
+  }, [multisynqConnected, pendingPixelUpdates, isProcessingQueue, sendPixelUpdateToModel]);
 
 
   // Calculate center offset to keep canvas centered
@@ -120,11 +155,14 @@ export default function PixelPlaceCanvas({
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
 
+      // Reset pixel count for new session
+      setUserCooldowns(prev => resetPixelCount(userId, prev));
+
       setIsConnected(true);
     };
 
     initializeCanvas();
-  }, [sessionId]);
+  }, [sessionId, userId]);
 
 
 
@@ -381,9 +419,9 @@ export default function PixelPlaceCanvas({
       return;
     }
 
-    // Check cooldown
-    if (isUserOnCooldown(userId, userCooldowns, canvasConfig)) {
-      console.log('User is on cooldown');
+    // Check only spam cooldown (removed regular cooldown)
+    if (isUserOnSpamCooldown(userId, userCooldowns, canvasConfig)) {
+      console.log('User is on spam cooldown');
       return;
     }
 
@@ -396,14 +434,15 @@ export default function PixelPlaceCanvas({
       // Update pixel locally
       updatePixel(x, y, selectedColor, walletAddress);
 
-      // Update cooldown
+      // Update cooldown with pixel count
       setUserCooldowns(prev => {
-        const newCooldowns = new Map(prev);
-        newCooldowns.set(userId, {
-          userId,
-          lastPixelTime: Date.now(),
-          cooldownDuration: canvasConfig.cooldownMs
-        });
+        const newCooldowns = incrementPixelCount(userId, prev);
+        
+        // Check if we should start spam cooldown
+        if (shouldStartSpamCooldown(userId, newCooldowns, canvasConfig)) {
+          return startSpamCooldown(userId, newCooldowns);
+        }
+        
         return newCooldowns;
       });
 
@@ -416,13 +455,19 @@ export default function PixelPlaceCanvas({
         timestamp: Date.now()
       };
 
-      // Send via Multisynq model
+      // Send via Multisynq model with queue fallback
       try {
         console.log('🎨 CANVAS: Sending pixel update to Multisynq model:', pixelUpdate);
         await sendPixelUpdateToModel(pixelUpdate);
         console.log('🎨 CANVAS: Successfully sent pixel update to model');
       } catch (error) {
         console.error('Failed to send pixel update to model:', error);
+        
+        // If connection is lost, queue the update for later
+        if (!multisynqConnected) {
+          console.log('🔄 Connection lost, queuing pixel update for later...');
+          setPendingPixelUpdates(prev => [...prev, pixelUpdate]);
+        }
       }
     } else if (currentTool === 'erase') {
       // Remove pixel locally
@@ -601,8 +646,17 @@ export default function PixelPlaceCanvas({
   // Auto-update cooldown timer every 100ms
   useEffect(() => {
     const interval = setInterval(() => {
-      const remaining = getRemainingCooldown(userId, userCooldowns, canvasConfig);
-      setCooldownTimer(remaining);
+      const spamRemaining = getRemainingSpamCooldown(userId, userCooldowns, canvasConfig);
+      setSpamCooldownTimer(spamRemaining);
+      
+      // Reset pixel count when cooldown ends
+      if (spamRemaining === 0) {
+        const currentCooldown = userCooldowns.get(userId);
+        if (currentCooldown && currentCooldown.cooldownStartTime && currentCooldown.pixelCount >= canvasConfig.maxPixelsPerCooldown) {
+          console.log('🔄 Resetting pixel count after cooldown');
+          setUserCooldowns(prev => resetPixelCount(userId, prev));
+        }
+      }
     }, 100);
 
     return () => clearInterval(interval);
@@ -862,16 +916,45 @@ export default function PixelPlaceCanvas({
           Zoom: {scale.toFixed(1)}x
         </div>
         <div className="text-sm text-gray-300">
-          Cooldown: {cooldownTimer > 0 
-            ? `${(cooldownTimer / 1000).toFixed(1)}s`
-            : 'Ready'
+          Spam Protection: {spamCooldownTimer > 0 
+            ? `${(spamCooldownTimer / 1000).toFixed(1)}s`
+            : 'Active'
           }
+        </div>
+        <div className="text-sm text-gray-300">
+          Pixels: {userCooldowns.get(userId)?.pixelCount || 0} / {canvasConfig.maxPixelsPerCooldown}
         </div>
         <div className="text-sm text-gray-300">
           Tool: {currentTool === 'draw' ? '✏️ Draw' : '🗑️ Erase'}
         </div>
         <div className="text-sm text-gray-300 mt-1">
-          Multisynq: {multisynqConnected ? '🟢 Connected' : '🔴 Disconnected'}
+          <div className="flex items-center justify-between">
+            <span>Multisynq: {multisynqConnected ? '🟢 Connected' : '🔴 Disconnected'}</span>
+            {!multisynqConnected && (
+              <button
+                onClick={reconnect}
+                className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded transition-colors"
+                title="Reconnect to Multisynq"
+              >
+                🔄 Reconnect
+              </button>
+            )}
+          </div>
+          {!multisynqConnected && (
+            <div className="text-xs text-yellow-400 mt-1">
+              ⚠️ Connection lost. Auto-reconnect in progress...
+            </div>
+          )}
+          {pendingPixelUpdates.length > 0 && (
+            <div className="text-xs text-blue-400 mt-1">
+              📋 {pendingPixelUpdates.length} pixel(s) queued for sync
+            </div>
+          )}
+          {isProcessingQueue && (
+            <div className="text-xs text-green-400 mt-1">
+              🔄 Syncing queued pixels...
+            </div>
+          )}
         </div>
         
         {/* Reset View Button */}
@@ -906,6 +989,15 @@ export default function PixelPlaceCanvas({
               />
               <span>{selectedColor}</span>
             </div>
+            <div className="mt-2 font-medium">Pixel Count</div>
+            <div className="flex items-center space-x-2">
+              <span>{userCooldowns.get(userId)?.pixelCount || 0} / {canvasConfig.maxPixelsPerCooldown}</span>
+              {spamCooldownTimer > 0 && (
+                <span className="text-red-400">
+                  ({(spamCooldownTimer / 1000).toFixed(1)}s cooldown)
+                </span>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -924,12 +1016,14 @@ export default function PixelPlaceCanvas({
         />
       </div>
 
-      {/* Cooldown Warning */}
-      {cooldownTimer > 0 && (
+
+
+      {/* Spam Cooldown Warning */}
+      {spamCooldownTimer > 0 && (
         <div className="fixed inset-0 bg-red-500/10 flex items-center justify-center pointer-events-none">
-                  <div className="bg-red-500 text-white px-6 py-3 rounded-lg text-lg font-bold">
-          Cooldown: {(cooldownTimer / 1000).toFixed(1)}s
-        </div>
+          <div className="bg-red-500 text-white px-6 py-3 rounded-lg text-lg font-bold">
+            Spam Protection: {(spamCooldownTimer / 1000).toFixed(1)}s remaining
+          </div>
         </div>
       )}
     </div>
