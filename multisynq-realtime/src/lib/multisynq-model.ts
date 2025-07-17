@@ -53,14 +53,14 @@ export class CanvasModel extends Model {
     this.lastUpdated = this.now(); // Use synchronized time
     this.totalPixels = Object.keys(this.pixels).length;
     
-    // Publish the update to all views using session scope
-    console.log('🎯 MODEL: Publishing pixel-updated to session scope');
+    // Publish the update to all views using view scope
+    console.log('🎯 MODEL: Publishing pixel-updated to view scope');
     console.log('🎯 MODEL: Publishing event with data:', pixelUpdate);
-    this.publish('session', 'pixel-updated', pixelUpdate);
+    this.publish('view', 'pixel-updated', pixelUpdate);
     console.log('🎯 MODEL: pixel-updated event published successfully');
     
-    console.log('🎯 MODEL: Publishing canvas-state-changed to session scope');
-    this.publish('session', 'canvas-state-changed', this.getState());
+    console.log('🎯 MODEL: Publishing canvas-state-changed to view scope');
+    this.publish('view', 'canvas-state-changed', this.getState());
     console.log('🎯 MODEL: canvas-state-changed event published successfully');
   }
 
@@ -70,8 +70,8 @@ export class CanvasModel extends Model {
     this.lastUpdated = this.now();
     this.totalPixels = 0;
     
-    this.publish('session', 'canvas-cleared', { timestamp: this.now() });
-    this.publish('session', 'canvas-state-changed', this.getState());
+    this.publish('view', 'canvas-cleared', { timestamp: this.now() });
+    this.publish('view', 'canvas-state-changed', this.getState());
   }
 
   // Get current state
