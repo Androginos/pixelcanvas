@@ -269,8 +269,12 @@ export class MultisynqCanvasClient {
           // Manually call init if it exists and hasn't been called
           if (typeof this.view.init === 'function') {
             console.log('🔧 Manually calling View.init()...');
-            this.view.init();
-            console.log('🔧 View.init() called successfully');
+            try {
+              this.view.init();
+              console.log('🔧 View.init() called successfully');
+            } catch (error) {
+              console.error('🔧 Error calling View.init():', error);
+            }
           }
         }
         

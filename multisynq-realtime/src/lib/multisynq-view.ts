@@ -21,22 +21,26 @@ export class CanvasView extends View {
   currentTool: 'draw' | 'erase' = 'draw';
 
   init() {
-    console.log('🎨 CanvasView initialized');
-    console.log('🎨 CanvasView: this.viewId =', this.viewId);
-    console.log('🎨 CanvasView: Setting up event subscriptions...');
-    
-    // Listen for model events using view scope
-    this.subscribe('view', 'pixel-updated', this.handlePixelUpdated);
-    console.log('🎨 CanvasView: Subscribed to view:pixel-updated');
-    
-    this.subscribe('view', 'canvas-cleared', this.handleCanvasCleared);
-    console.log('🎨 CanvasView: Subscribed to view:canvas-cleared');
-    
-    this.subscribe('view', 'canvas-state-changed', this.handleCanvasStateChanged);
-    console.log('🎨 CanvasView: Subscribed to view:canvas-state-changed');
-    
-    console.log('🎨 CanvasView: All subscriptions set up successfully');
-    console.log('🎨 CanvasView: init() method completed');
+    try {
+      console.log('🎨 CanvasView initialized');
+      console.log('🎨 CanvasView: this.viewId =', this.viewId);
+      console.log('🎨 CanvasView: Setting up event subscriptions...');
+      
+      // Listen for model events using view scope
+      this.subscribe('view', 'pixel-updated', this.handlePixelUpdated.bind(this));
+      console.log('🎨 CanvasView: Subscribed to view:pixel-updated');
+      
+      this.subscribe('view', 'canvas-cleared', this.handleCanvasCleared.bind(this));
+      console.log('🎨 CanvasView: Subscribed to view:canvas-cleared');
+      
+      this.subscribe('view', 'canvas-state-changed', this.handleCanvasStateChanged.bind(this));
+      console.log('🎨 CanvasView: Subscribed to view:canvas-state-changed');
+      
+      console.log('🎨 CanvasView: All subscriptions set up successfully');
+      console.log('🎨 CanvasView: init() method completed');
+    } catch (error) {
+      console.error('🎨 CanvasView: Error in init() method:', error);
+    }
   }
 
   // Handle pixel updates from model
