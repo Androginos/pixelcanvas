@@ -515,7 +515,7 @@ export default function PixelPlaceCanvas({
   // Listen for pixel updates from other users via Multisynq
   useEffect(() => {
     const handleViewEvent = (eventType: string, data: unknown) => {
-      console.log('🎨 CANVAS: Multisynq view event:', eventType, data);
+      console.log('🎨 CANVAS: Multisynq view event received:', eventType, data);
       
       if (eventType === 'pixel-update') {
         const pixelUpdate = data as PixelUpdate;

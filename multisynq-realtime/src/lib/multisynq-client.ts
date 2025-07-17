@@ -354,7 +354,12 @@ export class MultisynqCanvasClient {
 
   // Subscribe to Multisynq view events
   async subscribeToViewEvents(callback: (eventType: string, data: unknown) => void): Promise<void> {
-    if (!this.view) return;
+    if (!this.view) {
+      console.log('🔧 CLIENT: No view available for subscription');
+      return;
+    }
+
+    console.log('🔧 CLIENT: Setting up view event subscriptions...');
 
     // Listen to UI events from view
     this.view.subscribe('ui', 'ui-pixel-update', (data: unknown) => {
@@ -371,6 +376,8 @@ export class MultisynqCanvasClient {
       console.log('🔧 CLIENT: Received ui-canvas-state-changed from view:', data);
       callback('canvas-state-changed', data);
     });
+
+    console.log('🔧 CLIENT: View event subscriptions set up successfully');
   }
 
   // Send pixel update to Multisynq model
