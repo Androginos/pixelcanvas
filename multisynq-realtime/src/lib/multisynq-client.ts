@@ -212,6 +212,7 @@ export class MultisynqCanvasClient {
   private listeners: Map<string, Array<(data: unknown) => void>> = new Map();
   private isConnected: boolean = false;
   private sessionId: string = '';
+  private pendingViewCallback: ((eventType: string, data: unknown) => void) | null = null;
 
   constructor() {
     console.log('🔧 MultisynqCanvasClient created');
@@ -280,6 +281,13 @@ export class MultisynqCanvasClient {
         
         // Set up view event listeners
         this.setupViewListeners();
+        
+        // If there's a pending view callback, set it up now
+        if (this.pendingViewCallback) {
+          console.log('🔧 CLIENT: Setting up pending view callback...');
+          await this.subscribeToViewEvents(this.pendingViewCallback);
+          this.pendingViewCallback = null;
+        }
         
         console.log('🔗 Connected to real Multisynq session:', sessionParams.name);
       } else {
@@ -355,7 +363,9 @@ export class MultisynqCanvasClient {
   // Subscribe to Multisynq view events
   async subscribeToViewEvents(callback: (eventType: string, data: unknown) => void): Promise<void> {
     if (!this.view) {
-      console.log('🔧 CLIENT: No view available for subscription');
+      console.log('🔧 CLIENT: No view available for subscription, will retry when view is ready');
+      // Store callback to retry when view is ready
+      this.pendingViewCallback = callback;
       return;
     }
 
