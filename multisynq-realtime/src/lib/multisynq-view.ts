@@ -43,20 +43,16 @@ export class CanvasView extends View {
     }
   }
 
-  // Handle pixel updates from model
+  // Handle pixel updates from model - FAST SYNC
   handlePixelUpdated(pixelUpdate: any) {
     // Check if this event came from this view (prevent self-reception)
     if (pixelUpdate.sourceViewId === this.viewId) {
-      console.log('🎨 VIEW: Ignoring own pixel update event');
-      return;
+      return; // Skip own updates silently
     }
     
-    console.log('🎨 VIEW: Received pixel-updated event from model:', pixelUpdate);
-    console.log('🎨 VIEW: Publishing to UI components...');
-    // Publish to UI components (remove sourceViewId)
+    // FAST SYNC: Immediately publish to UI components
     const { sourceViewId, ...cleanPixelUpdate } = pixelUpdate;
     this.publish('ui', 'ui-pixel-update', cleanPixelUpdate);
-    console.log('🎨 VIEW: UI event published successfully');
   }
 
   // Handle canvas clear from model
@@ -71,18 +67,14 @@ export class CanvasView extends View {
     this.publish('ui', 'ui-canvas-state-changed', state);
   }
 
-  // Send pixel update to model
+  // Send pixel update to model - FAST SYNC
   sendPixelUpdate(pixelUpdate: PixelUpdate) {
-    console.log('🎨 VIEW: Sending pixel update to model:', pixelUpdate);
-    console.log('🎨 VIEW: Using model scope for publish...');
-    // Add view ID to prevent self-reception
+    // FAST SYNC: Send to model immediately
     const eventData = {
       ...pixelUpdate,
       sourceViewId: this.viewId
     };
-    // Send to model using model scope
     this.publish('model', 'pixel-update', eventData);
-    console.log('🎨 VIEW: Pixel update published to model successfully');
   }
 
   // Send canvas clear to model

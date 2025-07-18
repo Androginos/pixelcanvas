@@ -167,7 +167,7 @@ export default function PixelPlaceCanvas({
 
 
   // Render function with requestAnimationFrame
-  const render = useCallback(() => {
+  const render = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     
@@ -266,7 +266,7 @@ export default function PixelPlaceCanvas({
     }
 
     requestAnimationFrame(render);
-  }, [canvasState.pixels, hoverPixel, scale, offset, selectedColor, canvasConfig.width, canvasConfig.height]);
+  };
 
   // Mini-map render function
   const renderMinimap = useCallback(() => {
@@ -607,24 +607,24 @@ export default function PixelPlaceCanvas({
           return; // Don't update own pixels
         }
       
-      if (pixelUpdate.color === 'transparent') {
-        // Handle pixel removal
+        if (pixelUpdate.color === 'transparent') {
+          // Handle pixel removal
           console.log('🎨 CANVAS: Removing pixel at', pixelUpdate.x, pixelUpdate.y);
-        setCanvasState(prev => {
-          const newPixels = { ...prev.pixels };
-          const key = pixelKey(pixelUpdate.x, pixelUpdate.y);
-          delete newPixels[key];
-          
-          return {
-            ...prev,
-            pixels: newPixels,
-            lastUpdated: Date.now(),
-            totalPixels: Object.keys(newPixels).length
-          };
-        });
-      } else {
+          setCanvasState(prev => {
+            const newPixels = { ...prev.pixels };
+            const key = pixelKey(pixelUpdate.x, pixelUpdate.y);
+            delete newPixels[key];
+            
+            return {
+              ...prev,
+              pixels: newPixels,
+              lastUpdated: Date.now(),
+              totalPixels: Object.keys(newPixels).length
+            };
+          });
+        } else {
           console.log('🎨 CANVAS: Adding pixel at', pixelUpdate.x, pixelUpdate.y, 'with color', pixelUpdate.color);
-        updatePixel(pixelUpdate.x, pixelUpdate.y, pixelUpdate.color, pixelUpdate.owner);
+          updatePixel(pixelUpdate.x, pixelUpdate.y, pixelUpdate.color, pixelUpdate.owner);
         }
       } else if (eventType === 'canvas-state-changed') {
         const state = data as CanvasState;

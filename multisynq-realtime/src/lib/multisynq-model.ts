@@ -29,17 +29,15 @@ export class CanvasModel extends Model {
     this.subscribe('model', 'canvas-clear', this.handleCanvasClear);
   }
 
-  // Handle pixel update from any view
+  // Handle pixel update from any view - OPTIMIZED FOR FAST SYNC
   handlePixelUpdate(pixelUpdate: any) {
     console.log('🎯 MODEL: Received pixel update event:', pixelUpdate);
-    console.log('🎯 MODEL: Current pixels count:', Object.keys(this.pixels).length);
     
     const key = `${pixelUpdate.x}_${pixelUpdate.y}`;
     
     if (pixelUpdate.color === 'transparent') {
       // Remove pixel
       delete this.pixels[key];
-      console.log('🎯 MODEL: Removed pixel at', key);
     } else {
       // Add/update pixel
       this.pixels[key] = {
@@ -47,21 +45,14 @@ export class CanvasModel extends Model {
         owner: pixelUpdate.owner,
         timestamp: pixelUpdate.timestamp
       };
-      console.log('🎯 MODEL: Added/updated pixel at', key, 'with color', pixelUpdate.color);
     }
     
-    this.lastUpdated = this.now(); // Use synchronized time
+    this.lastUpdated = this.now();
     this.totalPixels = Object.keys(this.pixels).length;
     
-    // Publish the update to all views using view scope (preserve sourceViewId)
-    console.log('🎯 MODEL: Publishing pixel-updated to view scope');
-    console.log('🎯 MODEL: Publishing event with data:', pixelUpdate);
+    // FAST SYNC: Publish to ALL devices instantly
     this.publish('view', 'pixel-updated', pixelUpdate);
-    console.log('🎯 MODEL: pixel-updated event published successfully');
-    
-    console.log('🎯 MODEL: Publishing canvas-state-changed to view scope');
     this.publish('view', 'canvas-state-changed', this.getState());
-    console.log('🎯 MODEL: canvas-state-changed event published successfully');
   }
 
   // Handle canvas clear from any view

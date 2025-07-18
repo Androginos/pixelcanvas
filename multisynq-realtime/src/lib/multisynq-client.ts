@@ -7,11 +7,16 @@ import { PixelUpdate } from '@/types/pixelplace';
 import { CanvasModel } from './multisynq-model';
 import { CanvasView } from './multisynq-view';
 
+// Debug environment variables
+console.log('🔍 Environment variables:');
+console.log('NEXT_PUBLIC_MULTISYNQ_API_KEY:', process.env.NEXT_PUBLIC_MULTISYNQ_API_KEY);
+console.log('NEXT_PUBLIC_MULTISYNQ_PROJECT_ID:', process.env.NEXT_PUBLIC_MULTISYNQ_PROJECT_ID);
+
 // Multisynq configuration
 export const MULTISYNQ_CONFIG = {
-  apiKey: process.env.NEXT_PUBLIC_MULTISYNQ_API_KEY || '',
-  appId: process.env.NEXT_PUBLIC_MULTISYNQ_PROJECT_ID || 'com.monadplace.pixelcanvas',
-  useMock: !process.env.NEXT_PUBLIC_MULTISYNQ_API_KEY || process.env.NEXT_PUBLIC_MULTISYNQ_API_KEY === 'demo-key'
+    apiKey: process.env.NEXT_PUBLIC_MULTISYNQ_API_KEY || '2LF0JJWNCO68UljNMQ5abCcwa4mnrd3GA28CqHoyhI',
+    appId: process.env.NEXT_PUBLIC_MULTISYNQ_PROJECT_ID || 'com.monadplace.pixelcanvas',
+    useMock: false // Force real Multisynq mode
 };
 
 // Event types
@@ -80,6 +85,10 @@ class MockModel {
     console.log('🎯 MockModel: Publishing canvas-state-changed to session scope');
     this.publish('session', 'canvas-state-changed', this.getState());
     console.log('🎯 MockModel: canvas-state-changed event published successfully');
+    
+    // Also publish to UI scope for immediate updates
+    this.publish('ui', 'ui-pixel-update', pixelUpdate);
+    console.log('🎯 MockModel: ui-pixel-update event published successfully');
   }
 
   // Handle canvas clear from any view
@@ -346,6 +355,11 @@ export class MultisynqCanvasClient {
         
         // Broadcast to local listeners (for mock mode)
         this.broadcastToListeners(EVENTS.PIXEL_UPDATE, pixelUpdate);
+        
+        // Also trigger view events for real-time updates
+        if (this.view) {
+          this.view.publish('ui', 'ui-pixel-update', pixelUpdate);
+        }
       }
     } catch (error) {
       console.error('Failed to publish pixel update:', error);
